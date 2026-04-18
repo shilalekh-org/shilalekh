@@ -1,7 +1,4 @@
-import { useState } from 'react'
-
 export default function App() {
-  const [, setMenuOpen] = useState(false)
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
