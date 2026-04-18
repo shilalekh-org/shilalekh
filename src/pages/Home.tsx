@@ -31,9 +31,9 @@ export default function Home() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
           <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>EXPLORE</a>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>INSCRIPTIONS</a>
+          <span onClick={() => navigate('/inscriptions')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>INSCRIPTIONS</span>
           <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
-          <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none', cursor: 'pointer' }}>ABOUT</span>
+          <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>ABOUT</span>
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em' }}>{user.email?.split('@')[0].toUpperCase()}</span>

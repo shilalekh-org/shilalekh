@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Inscription from './pages/Inscription'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
+import Inscriptions from './pages/Inscriptions'
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/inscription/:id" element={<Inscription />} />
       <Route path="/about" element={<About />} />
       <Route path="/signin" element={<SignIn />} />
+      <Route path="/inscriptions" element={<Inscriptions />} />
     </Routes>
   )
 }
