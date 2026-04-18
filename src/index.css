@@ -14,19 +14,28 @@ body {
   margin: 0;
   padding: 0;
 }
+
 .desktop-nav {
   display: flex;
+  align-items: center;
+  gap: 28px;
 }
 
 .hamburger {
-  display: none !important;
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
 }
 
 @media (max-width: 768px) {
   .desktop-nav {
-    display: none !important;
+    display: none;
   }
   .hamburger {
-    display: flex !important;
+    display: flex;
   }
 }
