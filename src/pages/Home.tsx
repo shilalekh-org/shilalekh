@@ -30,7 +30,7 @@ export default function Home() {
           <span style={{ fontSize: '11px', color: '#555250', letterSpacing: '.2em' }}>SHILALEKH</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>EXPLORE</a>
+          <span onClick={() => navigate('/map')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>EXPLORE</span>
           <span onClick={() => navigate('/inscriptions')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>INSCRIPTIONS</span>
           <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
           <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>ABOUT</span>
@@ -52,7 +52,7 @@ export default function Home() {
         <div style={{ width: '40px', height: '0.5px', background: '#d4a843', margin: '0 auto 24px', opacity: .5 }} />
         <p style={{ fontSize: '14px', color: '#888780', maxWidth: '480px', lineHeight: 1.8, marginBottom: '48px', letterSpacing: '.03em' }}>Discover, explore and contribute to the world's most comprehensive database of stone inscriptions, copper plates and epigraphic records.</p>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button style={{ background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '12px 32px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>EXPLORE THE MAP</button>
+          <button onClick={() => navigate('/map')} style={{ background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '12px 32px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>EXPLORE THE MAP</button>
           <button onClick={() => navigate('/inscription/naneghat')} style={{ background: 'transparent', border: '0.5px solid #555250', color: '#888780', padding: '12px 32px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: 'pointer' }}>VIEW SAMPLE INSCRIPTION</button>
         </div>
       </div>
@@ -68,8 +68,8 @@ export default function Home() {
         <p style={{ fontSize: '9px', letterSpacing: '.2em', color: '#c4622d', marginBottom: '12px' }}>EXPLORE</p>
         <h3 style={{ fontSize: '1.8rem', fontWeight: 300, color: '#e8e4d9', marginBottom: '8px', letterSpacing: '.05em' }}>Inscriptions on the map</h3>
         <p style={{ fontSize: '13px', color: '#555250', marginBottom: '40px', letterSpacing: '.03em' }}>Every pin is a piece of history. Click to explore.</p>
-        <div style={{ background: '#111', border: '0.5px solid #2a2a2a', borderRadius: '8px', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto' }}>
-          <p style={{ fontSize: '12px', color: '#333', letterSpacing: '.1em' }}>INTERACTIVE MAP — COMING SOON</p>
+        <div onClick={() => navigate('/map')} style={{ background: '#111', border: '0.5px solid #2a2a2a', borderRadius: '8px', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto', cursor: 'pointer' }}>
+          <p style={{ fontSize: '12px', color: '#555250', letterSpacing: '.1em' }}>CLICK TO OPEN INTERACTIVE MAP →</p>
         </div>
       </div>
 
