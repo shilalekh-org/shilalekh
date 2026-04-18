@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
-import Home from './pages/Home.tsx'
-import Inscription from './pages/Inscription.tsx'
-import About from './pages/About.tsx'
+import Home from './pages/Home'
+import Inscription from './pages/Inscription'
+import About from './pages/About'
+import SignIn from './pages/SignIn'
 
 export default function App() {
   return (
@@ -9,6 +10,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/inscription/:id" element={<Inscription />} />
       <Route path="/about" element={<About />} />
+      <Route path="/signin" element={<SignIn />} />
     </Routes>
   )
 }
