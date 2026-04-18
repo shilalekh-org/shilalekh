@@ -1,49 +1,13 @@
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import Nav from '../components/Nav'
 
 export default function Home() {
   const navigate = useNavigate()
-  const [user, setUser] = useState<any>(null)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
 
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(10,10,10,0.95)', borderBottom: '0.5px solid #2a2a2a', padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <span style={{ fontSize: '20px', color: '#d4a843', letterSpacing: '.05em' }}>शिलालेख</span>
-          <span style={{ fontSize: '11px', color: '#555250', letterSpacing: '.2em' }}>SHILALEKH</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <span onClick={() => navigate('/map')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>EXPLORE</span>
-          <span onClick={() => navigate('/inscriptions')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>INSCRIPTIONS</span>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
-          <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>ABOUT</span>
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em' }}>{user.email?.split('@')[0].toUpperCase()}</span>
-              <button onClick={signOut} style={{ background: 'transparent', border: '0.5px solid #555250', color: '#555250', padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>SIGN OUT</button>
-            </div>
-          ) : (
-            <button onClick={() => navigate('/signin')} style={{ background: 'transparent', border: '0.5px solid #d4a843', color: '#d4a843', padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>SIGN IN</button>
-          )}
-        </div>
-      </nav>
+      <Nav />
 
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '120px 24px 60px' }}>
         <p style={{ fontSize: '11px', letterSpacing: '.3em', color: '#c4622d', marginBottom: '20px' }}>GLOBAL EPIGRAPHIC DATABASE</p>

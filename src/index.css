@@ -14,3 +14,19 @@ body {
   margin: 0;
   padding: 0;
 }
+.desktop-nav {
+  display: flex;
+}
+
+.hamburger {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .hamburger {
+    display: flex !important;
+  }
+}

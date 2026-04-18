@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import Nav from '../components/Nav'
 
 export default function About() {
   const navigate = useNavigate()
@@ -6,19 +7,7 @@ export default function About() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
 
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(10,10,10,0.95)', borderBottom: '0.5px solid #2a2a2a', padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <span style={{ fontSize: '20px', color: '#d4a843', letterSpacing: '.05em' }}>शिलालेख</span>
-          <span style={{ fontSize: '11px', color: '#555250', letterSpacing: '.2em' }}>SHILALEKH</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>EXPLORE</a>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>INSCRIPTIONS</a>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
-          <span style={{ fontSize: '12px', color: '#d4a843', letterSpacing: '.1em' }}>ABOUT</span>
-          <button style={{ background: 'transparent', border: '0.5px solid #d4a843', color: '#d4a843', padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>SIGN IN</button>
-        </div>
-      </nav>
+      <Nav />
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '120px 32px 80px' }}>
 
@@ -28,13 +17,9 @@ export default function About() {
         <h1 style={{ fontSize: '3rem', fontWeight: 300, color: '#d4a843', marginBottom: '8px', letterSpacing: '.05em', lineHeight: 1.2 }}>Preserving stone.<br />Preserving history.</h1>
         <div style={{ width: '40px', height: '0.5px', background: '#d4a843', margin: '24px 0', opacity: .5 }} />
 
-        <p style={{ fontSize: '15px', color: '#888780', lineHeight: 1.9, marginBottom: '24px' }}>
-          Shilalekh — from शिला (stone) and लेख (inscription) — is a global database dedicated to documenting, preserving and making accessible every stone inscription, copper plate, and epigraphic record ever created.
-        </p>
+        <p style={{ fontSize: '15px', color: '#888780', lineHeight: 1.9, marginBottom: '24px' }}>Shilalekh — from शिला (stone) and लेख (inscription) — is a global database dedicated to documenting, preserving and making accessible every stone inscription, copper plate, and epigraphic record ever created.</p>
 
-        <p style={{ fontSize: '15px', color: '#888780', lineHeight: 1.9, marginBottom: '48px' }}>
-          India alone is estimated to have over 3,00,000 inscriptions. The Archaeological Survey of India has formally documented approximately 1,00,000. Thousands more are being discovered — and thousands more are being lost to time, weather, and development. Shilalekh exists to change that.
-        </p>
+        <p style={{ fontSize: '15px', color: '#888780', lineHeight: 1.9, marginBottom: '48px' }}>India alone is estimated to have over 3,00,000 inscriptions. The Archaeological Survey of India has formally documented approximately 1,00,000. Thousands more are being discovered — and thousands more are being lost to time, weather, and development. Shilalekh exists to change that.</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '48px' }}>
           {[
@@ -52,7 +37,7 @@ export default function About() {
 
         <div style={{ borderTop: '0.5px solid #1e1e1e', paddingTop: '40px' }}>
           <p style={{ fontSize: '11px', letterSpacing: '.2em', color: '#c4622d', marginBottom: '16px' }}>THE PROJECT</p>
-          <p style={{ fontSize: '13px', color: '#555250', lineHeight: 1.8, marginBottom: '16px' }}>Shilalekh was founded with a simple belief — that every inscription, however small, however weathered, however obscure, is a piece of history that deserves to be recorded. A single word carved in stone two thousand years ago is still history.</p>
+          <p style={{ fontSize: '13px', color: '#555250', lineHeight: 1.8, marginBottom: '16px' }}>Shilalekh was founded with a simple belief — that every inscription, however small, however weathered, however obscure, is a piece of history that deserves to be recorded.</p>
           <p style={{ fontSize: '13px', color: '#555250', lineHeight: 1.8 }}>We are building the world's most comprehensive, open, and accessible epigraphic database — one inscription at a time.</p>
         </div>
 

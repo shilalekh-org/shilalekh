@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import Nav from '../components/Nav'
 
 export default function Inscription() {
   const navigate = useNavigate()
@@ -6,21 +7,9 @@ export default function Inscription() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
 
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(10,10,10,0.95)', borderBottom: '0.5px solid #2a2a2a', padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <span style={{ fontSize: '20px', color: '#d4a843', letterSpacing: '.05em' }}>शिलालेख</span>
-          <span style={{ fontSize: '11px', color: '#555250', letterSpacing: '.2em' }}>SHILALEKH</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>EXPLORE</a>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>INSCRIPTIONS</a>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
-          <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>ABOUT</span>
-          <button style={{ background: 'transparent', border: '0.5px solid #d4a843', color: '#d4a843', padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>SIGN IN</button>
-        </div>
-      </nav>
+      <Nav />
 
-      <div style={{ paddingTop: '80px', maxWidth: '900px', margin: '0 auto', padding: '100px 32px 60px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 32px 60px' }}>
 
         <p style={{ fontSize: '10px', letterSpacing: '.2em', color: '#555250', marginBottom: '8px', cursor: 'pointer' }} onClick={() => navigate('/')}>← BACK TO HOME</p>
 
@@ -38,7 +27,7 @@ export default function Inscription() {
 
         <div style={{ background: '#111', border: '0.5px solid #2a2a2a', borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: '#c4622d', marginBottom: '12px' }}>SHORT DESCRIPTION</p>
-          <p style={{ fontSize: '15px', color: '#e8e4d9', lineHeight: 1.8 }}>One of the oldest Sanskrit inscriptions in India, found on the wall of a cave rest stop in the Western Ghats. Commissioned by Queen Naganika of the Satavahana dynasty. Contains the world's oldest known numeral symbols for digits 2, 4, 6, 7 and 9 — the direct ancestors of the numerals used globally today.</p>
+          <p style={{ fontSize: '15px', color: '#e8e4d9', lineHeight: 1.8 }}>One of the oldest Sanskrit inscriptions in India, found on the wall of a cave rest stop in the Western Ghats. Commissioned by Queen Naganika of the Satavahana dynasty. Contains the world's oldest known numeral symbols for digits 2, 4, 6, 7 and 9.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>

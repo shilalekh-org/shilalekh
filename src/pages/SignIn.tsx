@@ -8,7 +8,7 @@ export default function SignIn() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://shilalekh.org'
+        redirectTo: window.location.origin
       }
     })
   }

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import Nav from '../components/Nav'
 
 export default function Inscriptions() {
   const navigate = useNavigate()
@@ -30,21 +31,9 @@ export default function Inscriptions() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
 
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(10,10,10,0.95)', borderBottom: '0.5px solid #2a2a2a', padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <span style={{ fontSize: '20px', color: '#d4a843', letterSpacing: '.05em' }}>शिलालेख</span>
-          <span style={{ fontSize: '11px', color: '#555250', letterSpacing: '.2em' }}>SHILALEKH</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>EXPLORE</a>
-          <span style={{ fontSize: '12px', color: '#d4a843', letterSpacing: '.1em' }}>INSCRIPTIONS</span>
-          <a href="#" style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', textDecoration: 'none' }}>CONTRIBUTE</a>
-          <span onClick={() => navigate('/about')} style={{ fontSize: '12px', color: '#888780', letterSpacing: '.1em', cursor: 'pointer' }}>ABOUT</span>
-          <button onClick={() => navigate('/signin')} style={{ background: 'transparent', border: '0.5px solid #d4a843', color: '#d4a843', padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>SIGN IN</button>
-        </div>
-      </nav>
+      <Nav />
 
-      <div style={{ paddingTop: '100px', maxWidth: '1000px', margin: '0 auto', padding: '100px 32px 60px' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '100px 32px 60px' }}>
 
         <p style={{ fontSize: '10px', letterSpacing: '.2em', color: '#c4622d', marginBottom: '12px' }}>DATABASE</p>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: '#d4a843', marginBottom: '8px', letterSpacing: '.05em' }}>Inscriptions</h1>
