@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
-import Home from './pages/Home.tsx'
-import Inscription from './pages/Inscription.tsx'
-import About from './pages/About.tsx'
+import Home from './pages/Home'
+import Inscription from './pages/Inscription'
+import About from './pages/About'
 
 export default function App() {
   return (
