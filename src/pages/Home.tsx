@@ -1,7 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 
+
 export default function Home() {
   const navigate = useNavigate()
+
+  useEffect(() => {
+  supabase.from('inscriptions').select('count').then(({ data, error }) => {
+    console.log('Supabase connected:', data, error)
+  })
+}, [])
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif' }}>
