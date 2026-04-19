@@ -1,31 +1,31 @@
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { useTheme } from '../theme'
 
 export default function SignIn() {
   const navigate = useNavigate()
+  const { c } = useTheme()
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
+      options: { redirectTo: window.location.origin }
     })
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e4d9', fontFamily: 'Georgia, serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
 
       <div style={{ cursor: 'pointer', textAlign: 'center', marginBottom: '48px' }} onClick={() => navigate('/')}>
-        <p style={{ fontSize: '32px', color: '#d4a843', letterSpacing: '.05em', marginBottom: '4px' }}>शिलालेख</p>
-        <p style={{ fontSize: '11px', color: '#555250', letterSpacing: '.3em' }}>SHILALEKH</p>
+        <p style={{ fontSize: '32px', color: c.gold, letterSpacing: '.05em', marginBottom: '4px' }}>शिलालेख</p>
+        <p style={{ fontSize: '11px', color: c.textDim, letterSpacing: '.3em' }}>SHILALEKH</p>
       </div>
 
-      <div style={{ background: '#111', border: '0.5px solid #2a2a2a', borderRadius: '8px', padding: '40px', width: '100%', maxWidth: '380px', textAlign: 'center' }}>
-        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: '#c4622d', marginBottom: '12px' }}>WELCOME</p>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: '#e8e4d9', marginBottom: '8px' }}>Sign in to Shilalekh</h2>
-        <div style={{ width: '30px', height: '0.5px', background: '#d4a843', margin: '16px auto', opacity: .5 }} />
-        <p style={{ fontSize: '12px', color: '#555250', marginBottom: '32px', lineHeight: 1.6 }}>Access the full database of inscriptions, contribute records, and join the community of epigraphic researchers.</p>
+      <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '40px', width: '100%', maxWidth: '380px', textAlign: 'center' }}>
+        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>WELCOME</p>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: c.text, marginBottom: '8px' }}>Sign in to Shilalekh</h2>
+        <div style={{ width: '30px', height: '0.5px', background: c.gold, margin: '16px auto', opacity: .5 }} />
+        <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '32px', lineHeight: 1.6 }}>Access the full database of inscriptions, contribute records, and join the community of epigraphic researchers.</p>
 
         <button
           onClick={signInWithGoogle}
@@ -40,13 +40,12 @@ export default function SignIn() {
           Continue with Google
         </button>
 
-        <p style={{ fontSize: '11px', color: '#333', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: c.textFaint, lineHeight: 1.6 }}>
           By signing in you agree to our terms of service and privacy policy.
         </p>
       </div>
 
-      <p style={{ fontSize: '11px', color: '#333', marginTop: '24px', cursor: 'pointer' }} onClick={() => navigate('/')}>← Back to Shilalekh</p>
-
+      <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '24px', cursor: 'pointer' }} onClick={() => navigate('/')}>← Back to Shilalekh</p>
     </div>
   )
 }
