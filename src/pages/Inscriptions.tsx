@@ -9,7 +9,10 @@ export default function Inscriptions() {
   const { c } = useTheme()
   const [inscriptions, setInscriptions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('search') || ''
+  })
 
   useEffect(() => {
     supabase

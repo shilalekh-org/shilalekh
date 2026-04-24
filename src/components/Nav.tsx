@@ -62,7 +62,7 @@ export default function Nav() {
   const links = [
     { label: 'EXPLORE', path: '/map' },
     { label: 'INSCRIPTIONS', path: '/inscriptions' },
-    { label: 'CONTRIBUTE', path: '/contribute' },
+    { label: 'CONTRIBUTE', path: '/submit' },
     { label: 'ABOUT', path: '/about' },
   ]
 

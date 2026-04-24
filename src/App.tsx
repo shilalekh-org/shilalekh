@@ -5,6 +5,8 @@ import About from './pages/About'
 import SignIn from './pages/SignIn'
 import Inscriptions from './pages/Inscriptions'
 import MapPage from './pages/MapPage'
+import Submit from './pages/Submit'
+import Admin from './pages/Admin'
 
 export default function App() {
   return (
@@ -15,6 +17,8 @@ export default function App() {
       <Route path="/signin" element={<SignIn />} />
       <Route path="/inscriptions" element={<Inscriptions />} />
       <Route path="/map" element={<MapPage />} />
+      <Route path="/submit" element={<Submit />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
   )
 }

@@ -75,7 +75,7 @@ export default function MapPage() {
                 <Popup>
                   <div style={{ fontFamily: 'Georgia, serif', minWidth: '200px' }}>
                     <p style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#1a1a1a' }}>{inscription.title}</p>
-                    {inscription.state_proviance && <p style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{inscription.state_proviance}</p>}
+                    {inscription.state_province && <p style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{inscription.state_province}</p>}
                     {inscription.year && <p style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{inscription.year}</p>}
                     {inscription.type && <p style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>{inscription.type}</p>}
                     <button

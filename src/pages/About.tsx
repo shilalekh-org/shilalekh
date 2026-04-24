@@ -48,7 +48,7 @@ export default function About() {
         <div style={{ marginTop: '48px', background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
           <p style={{ fontSize: '14px', color: c.gold, marginBottom: '8px', letterSpacing: '.05em' }}>Want to contribute?</p>
           <p style={{ fontSize: '13px', color: c.textMuted, marginBottom: '20px' }}>Join our community of historians, archaeologists and heritage enthusiasts.</p>
-          <button onClick={() => navigate('/')} style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>GET STARTED</button>
+          <button onClick={() => navigate('/submit')} style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>SUBMIT AN INSCRIPTION</button>
         </div>
 
       </div>
