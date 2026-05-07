@@ -32,6 +32,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({})
+  const [moreInfoMessages, setMoreInfoMessages] = useState<Record<string, string>>({})
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
@@ -56,17 +57,36 @@ export default function Admin() {
     setLoading(false)
   }
 
+  const sendEmail = async (type: string, to: string, title: string, extra?: string) => {
+    try {
+      await fetch('/api/send-inscription-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, to, title, extra }),
+      })
+    } catch {
+      // Silent fail
+    }
+  }
+
   const approve = async (id: string) => {
+    const ins = inscriptions.find(i => i.id === id)!
     setActionLoading(id)
     setMessage(null)
     const { error } = await supabase
       .from('inscriptions')
-      .update({ status: 'approved', approved_by: ADMIN_EMAIL, approved_at: new Date().toISOString(), rejection_reason: null })
+      .update({
+        status: 'approved',
+        approved_by: ADMIN_EMAIL,
+        approved_at: new Date().toISOString(),
+        rejection_reason: null,
+      })
       .eq('id', id)
     if (error) {
       setMessage({ type: 'error', text: `Failed to approve: ${error.message}` })
     } else {
-      setMessage({ type: 'success', text: 'Inscription approved and now live.' })
+      await sendEmail('approved', ins.submitted_by, ins.title)
+      setMessage({ type: 'success', text: 'Inscription approved, live, and contributor notified.' })
       await fetchAll()
       setExpandedId(null)
     }
@@ -74,6 +94,7 @@ export default function Admin() {
   }
 
   const reject = async (id: string) => {
+    const ins = inscriptions.find(i => i.id === id)!
     const reason = rejectionReasons[id]?.trim()
     if (!reason) {
       setMessage({ type: 'error', text: 'Please enter a rejection reason before rejecting.' })
@@ -83,15 +104,35 @@ export default function Admin() {
     setMessage(null)
     const { error } = await supabase
       .from('inscriptions')
-      .update({ status: 'rejected', rejection_reason: reason, approved_by: null, approved_at: null })
+      .update({
+        status: 'rejected',
+        rejection_reason: reason,
+        approved_by: null,
+        approved_at: null,
+      })
       .eq('id', id)
     if (error) {
       setMessage({ type: 'error', text: `Failed to reject: ${error.message}` })
     } else {
-      setMessage({ type: 'success', text: 'Inscription rejected.' })
+      await sendEmail('rejected', ins.submitted_by, ins.title, reason)
+      setMessage({ type: 'success', text: 'Inscription rejected and contributor notified.' })
       await fetchAll()
       setExpandedId(null)
     }
+    setActionLoading(null)
+  }
+
+  const requestMoreInfo = async (id: string) => {
+    const ins = inscriptions.find(i => i.id === id)!
+    const msg = moreInfoMessages[id]?.trim()
+    if (!msg) {
+      setMessage({ type: 'error', text: 'Please type a message before sending.' })
+      return
+    }
+    setActionLoading(`moreinfo-${id}`)
+    await sendEmail('more-info', ins.submitted_by, ins.title, msg)
+    setMessage({ type: 'success', text: `Message sent to ${ins.submitted_by}.` })
+    setMoreInfoMessages(prev => ({ ...prev, [id]: '' }))
     setActionLoading(null)
   }
 
@@ -112,6 +153,25 @@ export default function Admin() {
     fontFamily: 'Arial, sans-serif',
   })
 
+  const moreInfoBlock = (id: string) => (
+    <div style={{ background: c.bg, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '14px', marginTop: '12px' }}>
+      <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, marginBottom: '10px', fontFamily: 'Arial, sans-serif' }}>REQUEST MORE INFORMATION</p>
+      <textarea
+        placeholder="Type your message to the contributor — what information or source verification do you need?"
+        value={moreInfoMessages[id] || ''}
+        onChange={e => setMoreInfoMessages(prev => ({ ...prev, [id]: e.target.value }))}
+        style={{ width: '100%', background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '12px', fontFamily: 'Georgia, serif', outline: 'none', resize: 'vertical', minHeight: '80px', marginBottom: '10px', boxSizing: 'border-box' as const }}
+      />
+      <button
+        onClick={() => requestMoreInfo(id)}
+        disabled={actionLoading === `moreinfo-${id}`}
+        style={{ background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '8px 20px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
+      >
+        {actionLoading === `moreinfo-${id}` ? 'SENDING...' : 'SEND MESSAGE'}
+      </button>
+    </div>
+  )
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -126,13 +186,11 @@ export default function Admin() {
       <Nav />
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 32px 80px' }}>
 
-        {/* Header */}
         <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '8px', fontFamily: 'Arial, sans-serif' }}>ADMIN</p>
         <h1 style={{ fontSize: '2.2rem', fontWeight: 300, color: c.gold, marginBottom: '4px', letterSpacing: '.05em' }}>Approval Dashboard</h1>
         <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '8px' }}>Signed in as <span style={{ color: c.gold }}>{user?.email}</span></p>
         <div style={{ width: '40px', height: '0.5px', background: c.gold, margin: '20px 0', opacity: .5 }} />
 
-        {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '32px' }}>
           {[
             { label: 'PENDING REVIEW', count: pending.length, color: c.orange },
@@ -146,27 +204,18 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* Message banner */}
         {message && (
           <div style={{ background: message.type === 'error' ? 'rgba(196,98,45,0.1)' : 'rgba(212,168,67,0.1)', border: `0.5px solid ${message.type === 'error' ? c.orange : c.gold}`, borderRadius: '4px', padding: '10px 16px', marginBottom: '20px' }}>
             <p style={{ fontSize: '12px', color: message.type === 'error' ? c.orange : c.gold }}>{message.text}</p>
           </div>
         )}
 
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-          <button style={tabStyle('pending')} onClick={() => setActiveTab('pending')}>
-            PENDING ({pending.length})
-          </button>
-          <button style={tabStyle('approved')} onClick={() => setActiveTab('approved')}>
-            APPROVED ({approved.length})
-          </button>
-          <button style={tabStyle('rejected')} onClick={() => setActiveTab('rejected')}>
-            REJECTED ({rejected.length})
-          </button>
+          <button style={tabStyle('pending')} onClick={() => setActiveTab('pending')}>PENDING ({pending.length})</button>
+          <button style={tabStyle('approved')} onClick={() => setActiveTab('approved')}>APPROVED ({approved.length})</button>
+          <button style={tabStyle('rejected')} onClick={() => setActiveTab('rejected')}>REJECTED ({rejected.length})</button>
         </div>
 
-        {/* List */}
         {displayed.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>NO {activeTab.toUpperCase()} INSCRIPTIONS</p>
@@ -175,7 +224,6 @@ export default function Admin() {
           displayed.map(ins => (
             <div key={ins.id} style={{ background: c.bgCard, border: `0.5px solid ${expandedId === ins.id ? c.gold : c.border}`, borderRadius: '8px', marginBottom: '10px', overflow: 'hidden' }}>
 
-              {/* Row */}
               <div
                 onClick={() => setExpandedId(expandedId === ins.id ? null : ins.id)}
                 style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}
@@ -193,24 +241,16 @@ export default function Admin() {
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  {ins.status === 'pending' && (
-                    <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.orange}`, color: c.orange, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>PENDING</span>
-                  )}
-                  {ins.status === 'approved' && (
-                    <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>APPROVED</span>
-                  )}
-                  {ins.status === 'rejected' && (
-                    <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.textDim}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>REJECTED</span>
-                  )}
+                  {ins.status === 'pending' && <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.orange}`, color: c.orange, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>PENDING</span>}
+                  {ins.status === 'approved' && <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>APPROVED</span>}
+                  {ins.status === 'rejected' && <span style={{ fontSize: '9px', padding: '3px 10px', border: `0.5px solid ${c.textDim}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif' }}>REJECTED</span>}
                   <span style={{ fontSize: '16px', color: c.textDim }}>{expandedId === ins.id ? '−' : '+'}</span>
                 </div>
               </div>
 
-              {/* Expanded detail */}
               {expandedId === ins.id && (
                 <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '20px' }}>
 
-                  {/* Key fields */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
                     {[
                       { label: 'SCRIPT', value: ins.script },
@@ -224,7 +264,6 @@ export default function Admin() {
                     ))}
                   </div>
 
-                  {/* Short description */}
                   {ins.short_description && (
                     <div style={{ background: c.bg, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '14px', marginBottom: '16px' }}>
                       <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SHORT DESCRIPTION</p>
@@ -232,13 +271,11 @@ export default function Admin() {
                     </div>
                   )}
 
-                  {/* View full record link */}
                   <p
                     onClick={() => navigate(`/inscription/${ins.id}`)}
                     style={{ fontSize: '11px', color: c.gold, cursor: 'pointer', letterSpacing: '.05em', marginBottom: '20px', fontFamily: 'Arial, sans-serif' }}
                   >VIEW FULL RECORD →</p>
 
-                  {/* Rejection reason if already rejected */}
                   {ins.status === 'rejected' && ins.rejection_reason && (
                     <div style={{ background: 'rgba(196,98,45,0.08)', border: `0.5px solid ${c.orange}`, borderRadius: '6px', padding: '12px 14px', marginBottom: '16px' }}>
                       <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.orange, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>REJECTION REASON</p>
@@ -246,48 +283,50 @@ export default function Admin() {
                     </div>
                   )}
 
-                  {/* Action buttons — only for pending */}
+                  {/* ── PENDING ACTIONS ── */}
                   {ins.status === 'pending' && (
                     <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '16px' }}>
                       <textarea
-                        placeholder="Rejection reason (required if rejecting) — this will be recorded for your reference when emailing the submitter."
+                        placeholder="Rejection reason (required if rejecting)"
                         value={rejectionReasons[ins.id] || ''}
                         onChange={e => setRejectionReasons(prev => ({ ...prev, [ins.id]: e.target.value }))}
-                        style={{ width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '12px', fontFamily: 'Georgia, serif', outline: 'none', resize: 'vertical', minHeight: '70px', marginBottom: '12px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '12px', fontFamily: 'Georgia, serif', outline: 'none', resize: 'vertical', minHeight: '70px', marginBottom: '12px', boxSizing: 'border-box' as const }}
                       />
-                      <div style={{ display: 'flex', gap: '10px' }}>
+                      <div style={{ display: 'flex', gap: '10px', marginBottom: '4px' }}>
                         <button
                           onClick={() => approve(ins.id)}
                           disabled={actionLoading === ins.id}
                           style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: actionLoading === ins.id ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: actionLoading === ins.id ? 0.7 : 1, fontFamily: 'Arial, sans-serif' }}
-                        >{actionLoading === ins.id ? 'SAVING...' : 'APPROVE'}</button>
+                        >{actionLoading === ins.id ? 'SAVING...' : 'APPROVE & NOTIFY'}</button>
                         <button
                           onClick={() => reject(ins.id)}
                           disabled={actionLoading === ins.id}
                           style={{ background: 'transparent', border: `0.5px solid ${c.orange}`, color: c.orange, padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: actionLoading === ins.id ? 'not-allowed' : 'pointer', opacity: actionLoading === ins.id ? 0.7 : 1, fontFamily: 'Arial, sans-serif' }}
-                        >{actionLoading === ins.id ? 'SAVING...' : 'REJECT'}</button>
+                        >{actionLoading === ins.id ? 'SAVING...' : 'REJECT & NOTIFY'}</button>
                       </div>
+                      {moreInfoBlock(ins.id)}
                     </div>
                   )}
 
-                  {/* Re-review approved ones */}
+                  {/* ── APPROVED ACTIONS ── */}
                   {ins.status === 'approved' && (
                     <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '16px' }}>
                       <textarea
                         placeholder="Rejection reason (required to move back to rejected)"
                         value={rejectionReasons[ins.id] || ''}
                         onChange={e => setRejectionReasons(prev => ({ ...prev, [ins.id]: e.target.value }))}
-                        style={{ width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '12px', fontFamily: 'Georgia, serif', outline: 'none', resize: 'vertical', minHeight: '70px', marginBottom: '12px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '12px', fontFamily: 'Georgia, serif', outline: 'none', resize: 'vertical', minHeight: '70px', marginBottom: '12px', boxSizing: 'border-box' as const }}
                       />
                       <button
                         onClick={() => reject(ins.id)}
                         disabled={actionLoading === ins.id}
                         style={{ background: 'transparent', border: `0.5px solid ${c.orange}`, color: c.orange, padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: actionLoading === ins.id ? 'not-allowed' : 'pointer', fontFamily: 'Arial, sans-serif' }}
                       >MOVE TO REJECTED</button>
+                      {moreInfoBlock(ins.id)}
                     </div>
                   )}
 
-                  {/* Re-approve rejected ones */}
+                  {/* ── REJECTED ACTIONS ── */}
                   {ins.status === 'rejected' && (
                     <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '16px' }}>
                       <button
@@ -306,7 +345,6 @@ export default function Admin() {
 
       </div>
 
-      {/* Footer */}
       <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', color: c.gold, fontFamily: 'Georgia, serif' }}>शिलालेख</span>
