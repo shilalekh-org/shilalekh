@@ -94,6 +94,16 @@ export default function Submit() {
       setErrors([`Submission failed: ${error.message}`])
     } else {
       setSubmitted(true)
+      // Send submission received email — fire and forget
+      fetch('/api/send-inscription-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'received',
+          to: user.email,
+          title: form.title,
+        }),
+      }).catch(() => {})
     }
   }
 
@@ -156,7 +166,7 @@ export default function Submit() {
         <h2 style={{ fontSize: '1.8rem', fontWeight: 300, color: c.gold, marginBottom: '16px' }}>Thank you for contributing</h2>
         <div style={{ width: '40px', height: '0.5px', background: c.gold, margin: '0 auto 24px', opacity: .5 }} />
         <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8, marginBottom: '32px' }}>
-          Your inscription has been submitted for review. Our team will verify the details and may contact you at <strong style={{ color: c.text }}>{user?.email}</strong> if we have any questions. Once approved, it will appear in the public database.
+          Your inscription has been submitted for review. We have sent a confirmation to <strong style={{ color: c.text }}>{user?.email}</strong>. Our team will verify the details and you will hear from us once a decision has been made.
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/inscriptions')} style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>BROWSE INSCRIPTIONS</button>
@@ -182,14 +192,12 @@ export default function Submit() {
           Submitting as: <span style={{ color: c.gold }}>{user?.email}</span>
         </p>
 
-        {/* Error banner */}
         {errors.length > 0 && (
           <div style={{ background: 'rgba(196,98,45,0.1)', border: `0.5px solid ${c.orange}`, borderRadius: '4px', padding: '12px 16px', marginTop: '16px' }}>
             {errors.map((e, i) => <p key={i} style={{ fontSize: '12px', color: c.orange, marginBottom: i < errors.length - 1 ? '4px' : 0 }}>{e}</p>)}
           </div>
         )}
 
-        {/* ── SECTION 1: BASIC INFORMATION ── */}
         {sectionLabel('BASIC INFORMATION', true)}
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>TITLE *</label>
@@ -216,7 +224,6 @@ export default function Submit() {
           <textarea style={textareaStyle} placeholder="A brief description of the inscription — what it is and why it matters." value={form.short_description} onChange={e => set('short_description', e.target.value)} />
         </div>
 
-        {/* ── SECTION 2: LOCATION ── */}
         {sectionLabel('LOCATION')}
         <div style={{ ...grid2, marginBottom: '16px' }}>
           <div>
@@ -249,7 +256,6 @@ export default function Submit() {
           </div>
         </div>
 
-        {/* ── SECTION 3: HISTORICAL CONTEXT ── */}
         {sectionLabel('HISTORICAL CONTEXT')}
         <div style={{ ...grid2, marginBottom: '16px' }}>
           <div>
@@ -292,7 +298,6 @@ export default function Submit() {
           <input style={inputStyle} placeholder="e.g. Royal proclamation, Temple dedication, Memorial" value={form.purpose} onChange={e => set('purpose', e.target.value)} />
         </div>
 
-        {/* ── SECTION 4: THE TEXT ── */}
         {sectionLabel('THE INSCRIPTION TEXT')}
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>ACTUAL TEXT (original script)</label>
@@ -315,7 +320,6 @@ export default function Submit() {
           <textarea style={{ ...textareaStyle, minHeight: '120px' }} placeholder="Any additional historical, archaeological or epigraphic details." value={form.detailed_information} onChange={e => set('detailed_information', e.target.value)} />
         </div>
 
-        {/* ── SECTION 5: PHYSICAL DETAILS ── */}
         {sectionLabel('PHYSICAL DETAILS')}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div>
@@ -332,7 +336,6 @@ export default function Submit() {
           </div>
         </div>
 
-        {/* ── SECTION 6: CREDITS ── */}
         {sectionLabel('CREDITS & REFERENCES')}
         <div style={{ ...grid2, marginBottom: '16px' }}>
           <div>
@@ -355,7 +358,6 @@ export default function Submit() {
           </div>
         </div>
 
-        {/* Submit */}
         <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: `0.5px solid ${c.borderLight}`, display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={handleSubmit}
@@ -367,7 +369,6 @@ export default function Submit() {
 
       </div>
 
-      {/* Footer */}
       <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', color: c.gold, fontFamily: 'Georgia, serif' }}>शिलालेख</span>
