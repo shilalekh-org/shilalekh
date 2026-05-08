@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { supabase } from '../supabase'
 import { useTheme } from '../theme'
 
@@ -21,7 +22,7 @@ const COUNTRIES = [
 
 export default function SignIn() {
   const navigate = useNavigate()
-  const { c } = useTheme()
+  const { c, theme } = useTheme()
   const [mode, setMode] = useState<Mode>('signin')
 
   const [email, setEmail] = useState('')
@@ -38,6 +39,20 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [signedUpEmail, setSignedUpEmail] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
+
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+
+  const verifyTurnstile = async (token: string) => {
+    const res = await fetch('/api/verify-turnstile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+    const data = await res.json()
+    return data.success as boolean
+  }
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -61,16 +76,33 @@ export default function SignIn() {
       return
     }
 
+    if (!turnstileToken) {
+      setMessage({ type: 'error', text: 'Security check not complete. Please wait a moment.' })
+      return
+    }
+
     if (!password) { setMessage({ type: 'error', text: 'Please enter your password.' }); return }
 
     if (mode === 'signup') {
       if (!fullName.trim()) { setMessage({ type: 'error', text: 'Please enter your full name.' }); return }
       if (password.length < 6) { setMessage({ type: 'error', text: 'Password must be at least 6 characters.' }); return }
       if (password !== confirmPassword) { setMessage({ type: 'error', text: 'Passwords do not match.' }); return }
-      if (!agreeTerms) { setMessage({ type: 'error', text: 'Please agree to the Privacy Policy and Terms of Service.' }); return }
+      if (!agreeTerms) { setMessage({ type: 'error', text: 'Please agree to the Privacy Policy, Terms of Service, and data processing consent.' }); return }
       if (!agreeAccuracy) { setMessage({ type: 'error', text: 'Please confirm the data accuracy agreement.' }); return }
+    }
 
-      setLoading(true)
+    setLoading(true)
+
+    const verified = await verifyTurnstile(turnstileToken)
+    if (!verified) {
+      setLoading(false)
+      setMessage({ type: 'error', text: 'Security check failed. Please refresh and try again.' })
+      setTurnstileToken(null)
+      setTurnstileKey(k => k + 1)
+      return
+    }
+
+    if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -88,6 +120,8 @@ export default function SignIn() {
       setLoading(false)
       if (error) {
         setMessage({ type: 'error', text: error.message })
+        setTurnstileToken(null)
+        setTurnstileKey(k => k + 1)
       } else {
         setSignedUpEmail(email.trim())
         setMode('check-email')
@@ -100,11 +134,15 @@ export default function SignIn() {
       return
     }
 
-    setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     setLoading(false)
-    if (error) setMessage({ type: 'error', text: 'Incorrect email or password.' })
-    else navigate('/')
+    if (error) {
+      setMessage({ type: 'error', text: 'Incorrect email or password.' })
+      setTurnstileToken(null)
+      setTurnstileKey(k => k + 1)
+    } else {
+      navigate('/')
+    }
   }
 
   const switchMode = (m: Mode) => {
@@ -120,6 +158,8 @@ export default function SignIn() {
     setAgreeTerms(false)
     setAgreeAccuracy(false)
     setAgreeMarketing(false)
+    setTurnstileToken(null)
+    setTurnstileKey(k => k + 1)
   }
 
   const inputStyle = {
@@ -300,7 +340,7 @@ export default function SignIn() {
                   <span onClick={() => navigate('/privacy')} style={{ color: c.gold, cursor: 'pointer', textDecoration: 'underline' }}>Privacy Policy</span>
                   {' '}and{' '}
                   <span onClick={() => navigate('/terms')} style={{ color: c.gold, cursor: 'pointer', textDecoration: 'underline' }}>Terms of Service</span>
-                  {' '}*
+                  , and consent to my personal data being processed and stored in India *
                 </label>
               </div>
 
@@ -333,8 +373,21 @@ export default function SignIn() {
           </div>
         )}
 
-        <button onClick={handleSubmit} disabled={loading}
-          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '16px', marginBottom: '16px', opacity: loading ? 0.7 : 1 }}>
+        {mode !== 'forgot' && (
+          <div style={{ margin: '16px 0 8px' }}>
+            <Turnstile
+              key={turnstileKey}
+              siteKey={siteKey}
+              onSuccess={token => setTurnstileToken(token)}
+              onError={() => setTurnstileToken(null)}
+              onExpire={() => setTurnstileToken(null)}
+              options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
+            />
+          </div>
+        )}
+
+        <button onClick={handleSubmit} disabled={loading || (mode !== 'forgot' && !turnstileToken)}
+          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: (loading || (mode !== 'forgot' && !turnstileToken)) ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '8px', marginBottom: '16px', opacity: (loading || (mode !== 'forgot' && !turnstileToken)) ? 0.5 : 1 }}>
           {loading ? 'PLEASE WAIT...' : mode === 'signin' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : 'SEND RESET EMAIL'}
         </button>
 

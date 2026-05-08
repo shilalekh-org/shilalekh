@@ -41,7 +41,7 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('shilalekh-theme') as Theme) || 'dark'
+    return (localStorage.getItem('shilalekh-theme') as Theme) || 'light'
   })
 
   useEffect(() => {

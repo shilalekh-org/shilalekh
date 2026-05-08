@@ -64,6 +64,7 @@ export default function Nav() {
     { label: 'INSCRIPTIONS', path: '/inscriptions' },
     { label: 'CONTRIBUTE', path: '/submit' },
     { label: 'ABOUT', path: '/about' },
+    { label: 'HELP', path: '/help' },
   ]
 
   return (

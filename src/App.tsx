@@ -9,6 +9,7 @@ import Submit from './pages/Submit'
 import Admin from './pages/Admin'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import Help from './pages/Help'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/help" element={<Help />} />
     </Routes>
   )
 }
