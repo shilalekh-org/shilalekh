@@ -42,7 +42,7 @@ export default function SignIn() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [turnstileKey, setTurnstileKey] = useState(0)
 
-  const siteKey = 0x4AAAAAADLhXn882VlIu-7G
+  const siteKey = '0x4AAAAAADLhXn882VlIu-7G'
 
   const verifyTurnstile = async (token: string) => {
     const res = await fetch('/api/verify-turnstile', {
