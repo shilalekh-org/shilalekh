@@ -92,7 +92,11 @@ export default function Nav() {
             ))}
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em' }}>
+                {/* Username — click to go to account settings */}
+                <span
+                  onClick={() => navigate('/account')}
+                  title="Account settings"
+                  style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
                   {user.email?.split('@')[0].toUpperCase()}
                 </span>
                 <button onClick={signOut} style={{ background: 'transparent', border: `0.5px solid ${linkColor}`, color: linkColor, padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>
@@ -149,10 +153,12 @@ export default function Nav() {
           ))}
           {user ? (
             <>
-              <span style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
-                {user.email?.split('@')[0].toUpperCase()}
+              <span onClick={() => { navigate('/account'); setMenuOpen(false) }}
+                style={{ fontSize: '12px', color: '#d4a843', letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
+                MY ACCOUNT
               </span>
-              <span onClick={signOut} style={{ fontSize: '12px', color: linkColor, letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
+              <span onClick={signOut}
+                style={{ fontSize: '12px', color: linkColor, letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
                 SIGN OUT
               </span>
             </>
