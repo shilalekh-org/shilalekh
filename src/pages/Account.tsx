@@ -47,6 +47,7 @@ export default function Account() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<Msg>(null)
 
+  // Load user on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { navigate('/signin'); return }
@@ -60,6 +61,16 @@ export default function Account() {
       setCountry(m.country || '')
       setLoading(false)
     })
+  }, [navigate])
+
+  // Navigate home immediately on sign-out
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        navigate('/')
+      }
+    })
+    return () => subscription.unsubscribe()
   }, [navigate])
 
   const saveProfile = async () => {
@@ -192,28 +203,23 @@ export default function Account() {
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, margin: '0 0 6px' }}>PROFILE</p>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 300, color: c.text, margin: 0 }}>Personal information</h2>
           <div style={{ width: '30px', height: '0.5px', background: c.gold, opacity: 0.5, margin: '14px 0 22px' }} />
-
           <MsgBox msg={profileMsg} />
-
           <input type="text" placeholder="Full name" value={fullName}
             onChange={e => setFullName(e.target.value)} style={inputStyle} />
           <input type="tel" placeholder="Phone number (optional)" value={phone}
             onChange={e => setPhone(e.target.value)} style={inputStyle} />
           <input type="text" placeholder="Institution / affiliation (optional)" value={institution}
             onChange={e => setInstitution(e.target.value)} style={inputStyle} />
-
           <select value={role} onChange={e => setRole(e.target.value)}
             style={{ ...selectStyle, color: role ? c.text : c.textDim }}>
             <option value="">Role / interest (optional)</option>
             {ROLES.map(r => <option key={r} value={r} style={{ background: c.bgCard, color: c.text }}>{r}</option>)}
           </select>
-
           <select value={country} onChange={e => setCountry(e.target.value)}
             style={{ ...selectStyle, color: country ? c.text : c.textDim }}>
             <option value="">Country (optional)</option>
             {COUNTRIES.map(co => <option key={co} value={co} style={{ background: c.bgCard, color: c.text }}>{co}</option>)}
           </select>
-
           <SaveBtn onClick={saveProfile} saving={profileSaving} label="SAVE PROFILE" saveLabel="SAVING…" />
         </div>
 
@@ -222,7 +228,6 @@ export default function Account() {
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, margin: '0 0 6px' }}>EMAIL ADDRESS</p>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 300, color: c.text, margin: 0 }}>Change your email</h2>
           <div style={{ width: '30px', height: '0.5px', background: c.gold, opacity: 0.5, margin: '14px 0 22px' }} />
-
           {isGoogleUser ? (
             <p style={{ fontSize: '13px', color: c.textDim, lineHeight: 1.6, margin: 0 }}>
               Your email is managed by Google and cannot be changed here. To update it, visit your Google account settings.
@@ -250,7 +255,6 @@ export default function Account() {
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, margin: '0 0 6px' }}>PASSWORD</p>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 300, color: c.text, margin: 0 }}>Change your password</h2>
           <div style={{ width: '30px', height: '0.5px', background: c.gold, opacity: 0.5, margin: '14px 0 22px' }} />
-
           {isGoogleUser ? (
             <p style={{ fontSize: '13px', color: c.textDim, lineHeight: 1.6, margin: 0 }}>
               Your account uses Google Sign-In, so no password is set. To add a password, sign out and use "Forgot password?" with your email address.
@@ -286,17 +290,9 @@ export default function Account() {
                 Coming soon — 2FA will be available in a future update.
               </p>
             </div>
-            {/* Placeholder toggle */}
             <div style={{ flexShrink: 0, marginTop: '32px' }}>
-              <div style={{
-                width: '44px', height: '24px', borderRadius: '20px',
-                background: c.border, position: 'relative', cursor: 'not-allowed',
-              }}>
-                <div style={{
-                  position: 'absolute', top: '3px', left: '3px',
-                  width: '18px', height: '18px', borderRadius: '50%',
-                  background: c.textDim,
-                }} />
+              <div style={{ width: '44px', height: '24px', borderRadius: '20px', background: c.border, position: 'relative', cursor: 'not-allowed' }}>
+                <div style={{ position: 'absolute', top: '3px', left: '3px', width: '18px', height: '18px', borderRadius: '50%', background: c.textDim }} />
               </div>
             </div>
           </div>
