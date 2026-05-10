@@ -65,19 +65,29 @@ export default function SignIn() {
     setMessage(null)
     if (!email.trim()) { setMessage({ type: 'error', text: 'Please enter your email.' }); return }
 
+    if (!turnstileToken) {
+      setMessage({ type: 'error', text: 'Security check not complete. Please wait a moment.' })
+      return
+    }
+
     if (mode === 'forgot') {
       setLoading(true)
+      const verified = await verifyTurnstile(turnstileToken)
+      if (!verified) {
+        setLoading(false)
+        setMessage({ type: 'error', text: 'Security check failed. Please refresh and try again.' })
+        setTurnstileToken(null)
+        setTurnstileKey(k => k + 1)
+        return
+      }
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'https://shilalekh.org/reset-password',  // ← FIXED
+        redirectTo: 'https://shilalekh.org/reset-password',
       })
       setLoading(false)
       if (error) setMessage({ type: 'error', text: error.message })
       else setMessage({ type: 'success', text: 'Password reset email sent. Please check your inbox.' })
-      return
-    }
-
-    if (!turnstileToken) {
-      setMessage({ type: 'error', text: 'Security check not complete. Please wait a moment.' })
+      setTurnstileToken(null)
+      setTurnstileKey(k => k + 1)
       return
     }
 
@@ -331,7 +341,6 @@ export default function SignIn() {
             </select>
 
             <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '16px', marginTop: '6px', marginBottom: '4px' }}>
-
               <div style={checkboxRowStyle}>
                 <input type="checkbox" id="agreeTerms" checked={agreeTerms}
                   onChange={e => setAgreeTerms(e.target.checked)} style={checkboxStyle} />
@@ -359,7 +368,6 @@ export default function SignIn() {
                   Send me occasional updates about new inscriptions and features (optional)
                 </label>
               </div>
-
             </div>
           </>
         )}
@@ -373,21 +381,20 @@ export default function SignIn() {
           </div>
         )}
 
-        {mode !== 'forgot' && (
-          <div style={{ margin: '16px 0 8px' }}>
-            <Turnstile
-              key={turnstileKey}
-              siteKey={siteKey}
-              onSuccess={token => setTurnstileToken(token)}
-              onError={() => setTurnstileToken(null)}
-              onExpire={() => setTurnstileToken(null)}
-              options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
-            />
-          </div>
-        )}
+        {/* Turnstile shown for ALL modes including forgot */}
+        <div style={{ margin: '16px 0 8px' }}>
+          <Turnstile
+            key={turnstileKey}
+            siteKey={siteKey}
+            onSuccess={token => setTurnstileToken(token)}
+            onError={() => setTurnstileToken(null)}
+            onExpire={() => setTurnstileToken(null)}
+            options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
+          />
+        </div>
 
-        <button onClick={handleSubmit} disabled={loading || (mode !== 'forgot' && !turnstileToken)}
-          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: (loading || (mode !== 'forgot' && !turnstileToken)) ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '8px', marginBottom: '16px', opacity: (loading || (mode !== 'forgot' && !turnstileToken)) ? 0.5 : 1 }}>
+        <button onClick={handleSubmit} disabled={loading || !turnstileToken}
+          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: (loading || !turnstileToken) ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '8px', marginBottom: '16px', opacity: (loading || !turnstileToken) ? 0.5 : 1 }}>
           {loading ? 'PLEASE WAIT...' : mode === 'signin' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : 'SEND RESET EMAIL'}
         </button>
 
