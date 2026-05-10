@@ -15,14 +15,24 @@ export default function ResetPassword() {
   const [expired, setExpired] = useState(false)
 
   useEffect(() => {
+    // Only PASSWORD_RECOVERY unlocks the form — not SIGNED_IN.
+    // SIGNED_IN fires on normal logins and must not show this form to regular users.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      if (event === 'PASSWORD_RECOVERY') {
         setSessionReady(true)
       }
     })
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionReady(true)
-    })
+
+    // If there is no reset code in the URL, the user didn't arrive via a reset email.
+    // Fall back to checking for an existing session (e.g. a logged-in user who typed
+    // this URL manually — we'll still let them change their password).
+    const hasResetCode = new URLSearchParams(window.location.search).has('code')
+    if (!hasResetCode) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) setSessionReady(true)
+      })
+    }
+
     return () => subscription.unsubscribe()
   }, [])
 
