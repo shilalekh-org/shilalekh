@@ -68,7 +68,7 @@ export default function SignIn() {
     if (mode === 'forgot') {
       setLoading(true)
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,  // ← FIXED
+        redirectTo: 'https://shilalekh.org/reset-password',  // ← FIXED
       })
       setLoading(false)
       if (error) setMessage({ type: 'error', text: error.message })
