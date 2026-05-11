@@ -77,7 +77,7 @@ export default function Admin() {
       .from('inscriptions')
       .update({
         status: 'approved',
-        approved_by: ADMIN_EMAIL,
+        approved_by: user?.id,
         approved_at: new Date().toISOString(),
         rejection_reason: null,
       })
