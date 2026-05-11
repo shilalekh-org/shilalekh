@@ -229,7 +229,7 @@ export default function Submit() {
   const [showInSituTooltip, setShowInSituTooltip] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+  const siteKey = '0x4AAAAAADLhXn882VlIu-7G'
 
   const BLANK_FORM = {
     title: '',
