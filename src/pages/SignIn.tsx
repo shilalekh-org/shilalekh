@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Turnstile } from '@marsidev/react-turnstile'
 import { supabase } from '../supabase'
 import { useTheme } from '../theme'
 
@@ -39,20 +38,6 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [signedUpEmail, setSignedUpEmail] = useState('')
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
-  const [turnstileKey, setTurnstileKey] = useState(0)
-
-  const siteKey = '0x4AAAAAADLhXn882VlIu-7G'
-
-  const verifyTurnstile = async (token: string) => {
-    const res = await fetch('/api/verify-turnstile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    })
-    const data = await res.json()
-    return data.success as boolean
-  }
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -65,29 +50,14 @@ export default function SignIn() {
     setMessage(null)
     if (!email.trim()) { setMessage({ type: 'error', text: 'Please enter your email.' }); return }
 
-    if (!turnstileToken) {
-      setMessage({ type: 'error', text: 'Security check not complete. Please wait a moment.' })
-      return
-    }
-
     if (mode === 'forgot') {
       setLoading(true)
-      const verified = await verifyTurnstile(turnstileToken)
-      if (!verified) {
-        setLoading(false)
-        setMessage({ type: 'error', text: 'Security check failed. Please refresh and try again.' })
-        setTurnstileToken(null)
-        setTurnstileKey(k => k + 1)
-        return
-      }
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: 'https://shilalekh.org/reset-password',
       })
       setLoading(false)
       if (error) setMessage({ type: 'error', text: error.message })
       else setMessage({ type: 'success', text: 'Password reset email sent. Please check your inbox.' })
-      setTurnstileToken(null)
-      setTurnstileKey(k => k + 1)
       return
     }
 
@@ -102,15 +72,6 @@ export default function SignIn() {
     }
 
     setLoading(true)
-
-    const verified = await verifyTurnstile(turnstileToken)
-    if (!verified) {
-      setLoading(false)
-      setMessage({ type: 'error', text: 'Security check failed. Please refresh and try again.' })
-      setTurnstileToken(null)
-      setTurnstileKey(k => k + 1)
-      return
-    }
 
     if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({
@@ -130,8 +91,6 @@ export default function SignIn() {
       setLoading(false)
       if (error) {
         setMessage({ type: 'error', text: error.message })
-        setTurnstileToken(null)
-        setTurnstileKey(k => k + 1)
       } else {
         setSignedUpEmail(email.trim())
         setMode('check-email')
@@ -148,8 +107,6 @@ export default function SignIn() {
     setLoading(false)
     if (error) {
       setMessage({ type: 'error', text: 'Incorrect email or password.' })
-      setTurnstileToken(null)
-      setTurnstileKey(k => k + 1)
     } else {
       navigate('/')
     }
@@ -168,8 +125,6 @@ export default function SignIn() {
     setAgreeTerms(false)
     setAgreeAccuracy(false)
     setAgreeMarketing(false)
-    setTurnstileToken(null)
-    setTurnstileKey(k => k + 1)
   }
 
   const inputStyle = {
@@ -247,8 +202,7 @@ export default function SignIn() {
             {signedUpEmail}
           </p>
           <p style={{ fontSize: '12px', color: c.textDim, lineHeight: 1.7, marginBottom: '32px' }}>
-            Click the link in the email to activate your account.
-            The link expires in 24 hours.
+            Click the link in the email to activate your account. The link expires in 24 hours.
           </p>
 
           <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '24px' }}>
@@ -381,20 +335,8 @@ export default function SignIn() {
           </div>
         )}
 
-        {/* Turnstile shown for ALL modes including forgot */}
-        <div style={{ margin: '16px 0 8px' }}>
-          <Turnstile
-            key={turnstileKey}
-            siteKey={siteKey}
-            onSuccess={token => setTurnstileToken(token)}
-            onError={() => setTurnstileToken(null)}
-            onExpire={() => setTurnstileToken(null)}
-            options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
-          />
-        </div>
-
-        <button onClick={handleSubmit} disabled={loading || !turnstileToken}
-          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: (loading || !turnstileToken) ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '8px', marginBottom: '16px', opacity: (loading || !turnstileToken) ? 0.5 : 1 }}>
+        <button onClick={handleSubmit} disabled={loading}
+          style={{ width: '100%', background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 24px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: '16px', marginBottom: '16px', opacity: loading ? 0.5 : 1 }}>
           {loading ? 'PLEASE WAIT...' : mode === 'signin' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : 'SEND RESET EMAIL'}
         </button>
 
