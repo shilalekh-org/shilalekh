@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Turnstile } from '@marsidev/react-turnstile'
 import { supabase } from '../supabase'
 import Nav from '../components/Nav'
 import { useTheme } from '../theme'
@@ -208,34 +207,26 @@ export default function Submit() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
-  const [turnstileKey, setTurnstileKey] = useState(0)
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [photoErrors, setPhotoErrors] = useState<string[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  // Original location map
   const [showMap, setShowMap] = useState(false)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markerRef = useRef<any>(null)
-  // Current location map
   const [showCurrentMap, setShowCurrentMap] = useState(false)
   const currentMapContainerRef = useRef<HTMLDivElement>(null)
   const currentMapInstanceRef = useRef<any>(null)
   const currentMarkerRef = useRef<any>(null)
-  // UI state
   const [showInSituTooltip, setShowInSituTooltip] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const siteKey = '0x4AAAAAADLhXn882VlIu-7G'
 
   const BLANK_FORM = {
     title: '',
     type: '',
     short_description: '',
-    // Original location
     original_location_known: true as boolean,
     country: '',
     state_province: '',
@@ -243,7 +234,6 @@ export default function Submit() {
     latitude: '',
     longitude: '',
     in_situ: false,
-    // Current location
     current_location_known: false as boolean,
     current_location_type: '',
     current_location: '',
@@ -251,7 +241,6 @@ export default function Submit() {
     current_country: '',
     current_lat: '',
     current_lng: '',
-    // Historical
     year: '',
     year_is_approximate: false,
     era: 'CE',
@@ -298,14 +287,10 @@ export default function Submit() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [lightboxIndex, photoPreviews.length])
 
-  // ── Original location map init / teardown ────────────────────────────────────
+  // ── Original location map ────────────────────────────────────────────────────
   useEffect(() => {
     if (!showMap) {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-        markerRef.current = null
-      }
+      if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null }
       return
     }
     const timer = setTimeout(async () => {
@@ -319,30 +304,22 @@ export default function Submit() {
       })
       const initLat = form.latitude ? parseFloat(form.latitude) : 20.5937
       const initLng = form.longitude ? parseFloat(form.longitude) : 78.9629
-      const initZoom = form.latitude ? 10 : 5
-      const map = L.map(mapContainerRef.current).setView([initLat, initLng], initZoom)
+      const map = L.map(mapContainerRef.current).setView([initLat, initLng], form.latitude ? 10 : 5)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd', maxZoom: 19,
       }).addTo(map)
       if (form.latitude && form.longitude) {
         const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
-        m.on('dragend', () => {
-          const pos = m.getLatLng()
-          setForm(prev => ({ ...prev, latitude: pos.lat.toFixed(6), longitude: pos.lng.toFixed(6) }))
-        })
+        m.on('dragend', () => { const p = m.getLatLng(); setForm(prev => ({ ...prev, latitude: p.lat.toFixed(6), longitude: p.lng.toFixed(6) })) })
         markerRef.current = m
       }
       map.on('click', (e: any) => {
         const { lat, lng } = e.latlng
-        if (markerRef.current) {
-          markerRef.current.setLatLng([lat, lng])
-        } else {
+        if (markerRef.current) { markerRef.current.setLatLng([lat, lng]) }
+        else {
           const m = L.marker([lat, lng], { draggable: true }).addTo(map)
-          m.on('dragend', () => {
-            const pos = m.getLatLng()
-            setForm(prev => ({ ...prev, latitude: pos.lat.toFixed(6), longitude: pos.lng.toFixed(6) }))
-          })
+          m.on('dragend', () => { const p = m.getLatLng(); setForm(prev => ({ ...prev, latitude: p.lat.toFixed(6), longitude: p.lng.toFixed(6) })) })
           markerRef.current = m
         }
         setForm(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }))
@@ -352,23 +329,17 @@ export default function Submit() {
     return () => clearTimeout(timer)
   }, [showMap])
 
-  // ── Sync typed original lat/lng → map marker ─────────────────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current || !markerRef.current) return
-    const lat = parseFloat(form.latitude)
-    const lng = parseFloat(form.longitude)
+    const lat = parseFloat(form.latitude); const lng = parseFloat(form.longitude)
     if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
       markerRef.current.setLatLng([lat, lng])
   }, [form.latitude, form.longitude])
 
-  // ── Current location map init / teardown ─────────────────────────────────────
+  // ── Current location map ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!showCurrentMap) {
-      if (currentMapInstanceRef.current) {
-        currentMapInstanceRef.current.remove()
-        currentMapInstanceRef.current = null
-        currentMarkerRef.current = null
-      }
+      if (currentMapInstanceRef.current) { currentMapInstanceRef.current.remove(); currentMapInstanceRef.current = null; currentMarkerRef.current = null }
       return
     }
     const timer = setTimeout(async () => {
@@ -382,30 +353,22 @@ export default function Submit() {
       })
       const initLat = form.current_lat ? parseFloat(form.current_lat) : 20.5937
       const initLng = form.current_lng ? parseFloat(form.current_lng) : 78.9629
-      const initZoom = form.current_lat ? 10 : 3
-      const map = L.map(currentMapContainerRef.current).setView([initLat, initLng], initZoom)
+      const map = L.map(currentMapContainerRef.current).setView([initLat, initLng], form.current_lat ? 10 : 3)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd', maxZoom: 19,
       }).addTo(map)
       if (form.current_lat && form.current_lng) {
         const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
-        m.on('dragend', () => {
-          const pos = m.getLatLng()
-          setForm(prev => ({ ...prev, current_lat: pos.lat.toFixed(6), current_lng: pos.lng.toFixed(6) }))
-        })
+        m.on('dragend', () => { const p = m.getLatLng(); setForm(prev => ({ ...prev, current_lat: p.lat.toFixed(6), current_lng: p.lng.toFixed(6) })) })
         currentMarkerRef.current = m
       }
       map.on('click', (e: any) => {
         const { lat, lng } = e.latlng
-        if (currentMarkerRef.current) {
-          currentMarkerRef.current.setLatLng([lat, lng])
-        } else {
+        if (currentMarkerRef.current) { currentMarkerRef.current.setLatLng([lat, lng]) }
+        else {
           const m = L.marker([lat, lng], { draggable: true }).addTo(map)
-          m.on('dragend', () => {
-            const pos = m.getLatLng()
-            setForm(prev => ({ ...prev, current_lat: pos.lat.toFixed(6), current_lng: pos.lng.toFixed(6) }))
-          })
+          m.on('dragend', () => { const p = m.getLatLng(); setForm(prev => ({ ...prev, current_lat: p.lat.toFixed(6), current_lng: p.lng.toFixed(6) })) })
           currentMarkerRef.current = m
         }
         setForm(prev => ({ ...prev, current_lat: lat.toFixed(6), current_lng: lng.toFixed(6) }))
@@ -415,25 +378,18 @@ export default function Submit() {
     return () => clearTimeout(timer)
   }, [showCurrentMap])
 
-  // ── Sync typed current lat/lng → current map marker ──────────────────────────
   useEffect(() => {
     if (!currentMapInstanceRef.current || !currentMarkerRef.current) return
-    const lat = parseFloat(form.current_lat)
-    const lng = parseFloat(form.current_lng)
+    const lat = parseFloat(form.current_lat); const lng = parseFloat(form.current_lng)
     if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
       currentMarkerRef.current.setLatLng([lat, lng])
   }, [form.current_lat, form.current_lng])
 
-  // ── Auto-hide current map when its section becomes invisible ─────────────────
   useEffect(() => {
-    const currentSectionVisible =
-      (form.original_location_known && !form.in_situ) || !form.original_location_known
-    if (!currentSectionVisible || !form.current_location_known) {
-      setShowCurrentMap(false)
-    }
+    const visible = (form.original_location_known && !form.in_situ) || !form.original_location_known
+    if (!visible || !form.current_location_known) setShowCurrentMap(false)
   }, [form.original_location_known, form.in_situ, form.current_location_known])
 
-  // ── Cleanup both maps on unmount ─────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null }
@@ -442,53 +398,33 @@ export default function Submit() {
   }, [])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  const set = (field: string, value: any) =>
-    setForm(prev => ({ ...prev, [field]: value }))
-
-  const handleCountryChange = (country: string) =>
-    setForm(prev => ({ ...prev, country, state_province: '' }))
-
+  const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }))
+  const handleCountryChange = (country: string) => setForm(prev => ({ ...prev, country, state_province: '' }))
   const stateOptions = STATES_BY_COUNTRY[form.country] || []
 
-  // YES / NO toggle button pair
   const yesNoBtn = (active: boolean, onClick: () => void, label: string) => (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '7px 24px',
-        borderRadius: '4px',
-        border: `0.5px solid ${active ? c.gold : c.border}`,
-        background: active ? c.gold : 'transparent',
-        color: active ? '#0a0a0a' : c.textMuted,
-        fontSize: '11px',
-        letterSpacing: '.08em',
-        cursor: 'pointer',
-        fontFamily: 'Arial, sans-serif',
-        fontWeight: active ? 600 : 400,
-        transition: 'all 0.15s',
-      }}
-    >{label}</button>
+    <button onClick={onClick} style={{
+      padding: '7px 24px', borderRadius: '4px',
+      border: `0.5px solid ${active ? c.gold : c.border}`,
+      background: active ? c.gold : 'transparent',
+      color: active ? '#0a0a0a' : c.textMuted,
+      fontSize: '11px', letterSpacing: '.08em', cursor: 'pointer',
+      fontFamily: 'Arial, sans-serif', fontWeight: active ? 600 : 400, transition: 'all 0.15s',
+    }}>{label}</button>
   )
 
   // ── Photo handlers ──────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    const errs: string[] = []
-    const valid: File[] = []
+    const errs: string[] = []; const valid: File[] = []
     files.forEach(file => {
-      if (!['image/jpeg', 'image/png'].includes(file.type)) {
-        errs.push(`${file.name} — only JPG and PNG files are accepted.`); return
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        errs.push(`${file.name} — file exceeds the 6MB limit.`); return
-      }
+      if (!['image/jpeg', 'image/png'].includes(file.type)) { errs.push(`${file.name} — only JPG and PNG files are accepted.`); return }
+      if (file.size > MAX_FILE_SIZE) { errs.push(`${file.name} — file exceeds the 6MB limit.`); return }
       valid.push(file)
     })
     const combined = [...photos, ...valid].slice(0, MAX_PHOTOS)
-    if (photos.length + valid.length > MAX_PHOTOS)
-      errs.push(`Maximum ${MAX_PHOTOS} photos allowed. Some photos were not added.`)
-    setPhotos(combined)
-    setPhotoErrors(errs)
+    if (photos.length + valid.length > MAX_PHOTOS) errs.push(`Maximum ${MAX_PHOTOS} photos allowed. Some photos were not added.`)
+    setPhotos(combined); setPhotoErrors(errs)
     setPhotoPreviews(combined.map(f => URL.createObjectURL(f)))
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -505,9 +441,7 @@ export default function Submit() {
     for (let i = 0; i < photos.length; i++) {
       const watermarked = await applyWatermark(photos[i], contributorName)
       const fileName = `${user.id}/${Date.now()}-${i}.jpg`
-      const { error } = await supabase.storage
-        .from('inscription-photos')
-        .upload(fileName, watermarked, { contentType: 'image/jpeg', upsert: false })
+      const { error } = await supabase.storage.from('inscription-photos').upload(fileName, watermarked, { contentType: 'image/jpeg', upsert: false })
       if (error) throw new Error(`Failed to upload photo ${i + 1}: ${error.message}`)
       const { data } = supabase.storage.from('inscription-photos').getPublicUrl(fileName)
       urls.push(data.publicUrl)
@@ -521,46 +455,26 @@ export default function Submit() {
     if (!form.title.trim()) errs.push('Title is required.')
     if (!form.type) errs.push('Type is required.')
     if (form.original_location_known && !form.country) errs.push('Country is required when original location is known.')
-    if (!turnstileToken) errs.push('Security check not complete. Please wait a moment.')
     setErrors(errs)
     if (errs.length) return
 
     setSubmitting(true)
 
-    const verifyRes = await fetch('/api/verify-turnstile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: turnstileToken }),
-    })
-    const verifyData = await verifyRes.json()
-    if (!verifyData.success) {
-      setErrors(['Security check failed. Please refresh and try again.'])
-      setTurnstileToken(null); setTurnstileKey(k => k + 1); setSubmitting(false); return
-    }
-
     let photoUrls: string[] = []
     if (photos.length > 0) {
       setUploadingPhotos(true)
       try { photoUrls = await uploadPhotos() }
-      catch (err: any) {
-        setErrors([err.message]); setSubmitting(false); setUploadingPhotos(false); return
-      }
+      catch (err: any) { setErrors([err.message]); setSubmitting(false); setUploadingPhotos(false); return }
       setUploadingPhotos(false)
     }
 
-    // Determine which location sections are active
-    const currentSectionActive =
-      (form.original_location_known && !form.in_situ) || !form.original_location_known
+    const currentSectionActive = (form.original_location_known && !form.in_situ) || !form.original_location_known
     const hasCurrentLocation = currentSectionActive && form.current_location_known
     const isPrivateCollection = form.current_location_type === 'Private Collection'
 
     const payload: any = {
-      // Basic
-      title: form.title,
-      type: form.type,
-      short_description: form.short_description,
-      condition: form.condition || null,
-      // Original location
+      title: form.title, type: form.type,
+      short_description: form.short_description, condition: form.condition || null,
       original_location_known: form.original_location_known,
       country: form.original_location_known ? form.country : null,
       state_province: form.original_location_known ? form.state_province || null : null,
@@ -568,53 +482,40 @@ export default function Submit() {
       latitude: form.original_location_known && form.latitude ? parseFloat(form.latitude) : null,
       longitude: form.original_location_known && form.longitude ? parseFloat(form.longitude) : null,
       in_situ: form.original_location_known ? form.in_situ : false,
-      // Current location
       current_location_known: hasCurrentLocation,
       current_location_type: hasCurrentLocation ? form.current_location_type || null : null,
       current_location: hasCurrentLocation ? form.current_location || null : null,
       current_city: hasCurrentLocation ? form.current_city || null : null,
       current_country: hasCurrentLocation ? form.current_country || null : null,
-      // Private collections do not get map coordinates
       current_lat: hasCurrentLocation && !isPrivateCollection && form.current_lat ? parseFloat(form.current_lat) : null,
       current_lng: hasCurrentLocation && !isPrivateCollection && form.current_lng ? parseFloat(form.current_lng) : null,
-      // Historical
       year: form.year ? `${form.year} ${form.era}` : null,
       year_is_approximate: form.year_is_approximate,
-      dynasty: form.dynasty || null,
-      reign_ruler: form.reign_ruler || null,
-      language: form.language,
-      script: form.script,
-      purpose: form.purpose || null,
-      actual_text: form.actual_text || null,
-      transliteration: form.transliteration || null,
+      dynasty: form.dynasty || null, reign_ruler: form.reign_ruler || null,
+      language: form.language, script: form.script, purpose: form.purpose || null,
+      actual_text: form.actual_text || null, transliteration: form.transliteration || null,
       translation_english: form.translation_english || null,
-      importance: form.importance || null,
-      detailed_information: form.detailed_information || null,
+      importance: form.importance || null, detailed_information: form.detailed_information || null,
       first_discovered_by: form.first_discovered_by || null,
       reading_done_by: form.reading_done_by || null,
-      credits: form.credits || null,
-      accession_number: form.accession_number || null,
+      credits: form.credits || null, accession_number: form.accession_number || null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       width_cm: form.width_cm ? parseFloat(form.width_cm) : null,
       depth_cm: form.depth_cm ? parseFloat(form.depth_cm) : null,
-      // Meta
-      status: 'pending',
-      submitted_by: user.email,
-      photo_urls: photoUrls,
+      status: 'pending', submitted_by: user.email, photo_urls: photoUrls,
     }
 
     const { error } = await supabase.from('inscriptions').insert([payload])
     setSubmitting(false)
     if (error) {
       setErrors([`Submission failed: ${error.message}`])
-      setTurnstileToken(null); setTurnstileKey(k => k + 1)
     } else {
-      setSubmitted(true)
       fetch('/api/send-inscription-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'received', to: user.email, title: form.title }),
       }).catch(() => {})
+      setSubmitted(true)
+      setTimeout(() => navigate('/'), 3000)
     }
   }
 
@@ -642,19 +543,16 @@ export default function Submit() {
   )
 
   const mapToggleBtn = (show: boolean, onToggle: () => void, hideLabel: string, showLabel: string) => (
-    <button
-      onClick={onToggle}
-      style={{
-        background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim,
-        padding: '8px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.08em',
-        cursor: 'pointer', fontFamily: 'Arial, sans-serif', marginBottom: '16px',
-        display: 'flex', alignItems: 'center', gap: '6px',
-      }}
+    <button onClick={onToggle} style={{
+      background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim,
+      padding: '8px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.08em',
+      cursor: 'pointer', fontFamily: 'Arial, sans-serif', marginBottom: '16px',
+      display: 'flex', alignItems: 'center', gap: '6px',
+    }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
       onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
     >
-      <span>📍</span>
-      {show ? hideLabel : showLabel}
+      <span>📍</span>{show ? hideLabel : showLabel}
     </button>
   )
 
@@ -678,17 +576,17 @@ export default function Submit() {
           Your inscription has been submitted for review. We have sent a confirmation to{' '}
           <strong style={{ color: c.text }}>{user?.email}</strong>. Our team will verify the details and you will hear from us once a decision has been made.
         </p>
+        <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '24px', fontStyle: 'italic' }}>
+          Returning to home in a moment…
+        </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/inscriptions')}
+          <button onClick={() => navigate('/')}
             style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>
-            BROWSE INSCRIPTIONS
+            BACK TO HOME
           </button>
-          <button onClick={() => {
-            setSubmitted(false); setTurnstileToken(null); setTurnstileKey(k => k + 1)
-            setPhotos([]); setPhotoPreviews([]); setPhotoErrors([])
-            setForm(BLANK_FORM)
-          }} style={{ background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textMuted, padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>
-            SUBMIT ANOTHER
+          <button onClick={() => navigate('/inscriptions')}
+            style={{ background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textMuted, padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>
+            BROWSE INSCRIPTIONS
           </button>
         </div>
       </div>
@@ -696,9 +594,7 @@ export default function Submit() {
   )
 
   // ── Main form ───────────────────────────────────────────────────────────────
-  // Derived state for conditional rendering
-  const showCurrentLocationSection =
-    (form.original_location_known && !form.in_situ) || !form.original_location_known
+  const showCurrentLocationSection = (form.original_location_known && !form.in_situ) || !form.original_location_known
   const isPrivateCollection = form.current_location_type === 'Private Collection'
 
   return (
@@ -776,8 +672,6 @@ export default function Submit() {
 
         {/* ══ LOCATION ══ */}
         {sectionLabel('LOCATION')}
-
-        {/* Pin legend */}
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px',
           background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
@@ -801,21 +695,14 @@ export default function Submit() {
           ))}
         </div>
 
-        {/* Q1: Is original location known? */}
         <div style={{ marginBottom: '24px' }}>
           <label style={labelStyle}>IS THE ORIGINAL LOCATION KNOWN?</label>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {yesNoBtn(form.original_location_known === true, () => {
-              set('original_location_known', true)
-            }, 'YES')}
-            {yesNoBtn(form.original_location_known === false, () => {
-              setForm(prev => ({ ...prev, original_location_known: false }))
-              setShowMap(false)
-            }, 'NO')}
+            {yesNoBtn(form.original_location_known === true, () => set('original_location_known', true), 'YES')}
+            {yesNoBtn(form.original_location_known === false, () => { setForm(prev => ({ ...prev, original_location_known: false })); setShowMap(false) }, 'NO')}
           </div>
         </div>
 
-        {/* Original location fields — shown when original is known */}
         {form.original_location_known && (
           <>
             <div style={{ ...grid2, marginBottom: '16px' }}>
@@ -838,12 +725,10 @@ export default function Submit() {
                 )}
               </div>
             </div>
-
             <div style={{ marginBottom: '16px' }}>
               <label style={labelStyle}>VILLAGE / TOWN / CITY</label>
               <input style={inputStyle} placeholder="e.g. Raigad" value={form.village_town_city} onChange={e => set('village_town_city', e.target.value)} />
             </div>
-
             <div style={{ ...grid2, marginBottom: '12px' }}>
               <div>
                 <label style={labelStyle}>LATITUDE</label>
@@ -854,31 +739,20 @@ export default function Submit() {
                 <input style={inputStyle} type="number" step="any" placeholder="e.g. 73.4403" value={form.longitude} onChange={e => set('longitude', e.target.value)} />
               </div>
             </div>
-
             {mapToggleBtn(showMap, () => setShowMap(v => !v), 'HIDE MAP', "DON'T KNOW THE COORDINATES? PIN ON MAP")}
-
             {showMap && (
               <div style={{ marginBottom: '20px' }}>
                 <div ref={mapContainerRef} style={{ height: '320px', borderRadius: '6px', border: `0.5px solid ${c.border}`, overflow: 'hidden' }} />
                 <p style={{ fontSize: '11px', color: c.textDim, marginTop: '8px', fontFamily: 'Arial, sans-serif', lineHeight: 1.5 }}>
                   Click anywhere on the map to place a pin. Drag to fine-tune. Coordinates fill in automatically.
-                  {form.latitude && form.longitude && (
-                    <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}</span>
-                  )}
+                  {form.latitude && form.longitude && <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}</span>}
                 </p>
               </div>
             )}
-
-            {/* In situ */}
             <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                type="checkbox" id="in_situ" checked={form.in_situ}
-                onChange={e => {
-                  set('in_situ', e.target.checked)
-                  if (e.target.checked) setShowCurrentMap(false)
-                }}
-                style={{ accentColor: c.gold, width: '14px', height: '14px', cursor: 'pointer' }}
-              />
+              <input type="checkbox" id="in_situ" checked={form.in_situ}
+                onChange={e => { set('in_situ', e.target.checked); if (e.target.checked) setShowCurrentMap(false) }}
+                style={{ accentColor: c.gold, width: '14px', height: '14px', cursor: 'pointer' }} />
               <label htmlFor="in_situ" style={{ ...labelStyle, marginBottom: 0, cursor: 'pointer' }}>INSCRIPTION IS IN SITU</label>
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 <span
@@ -896,32 +770,20 @@ export default function Submit() {
           </>
         )}
 
-        {/* Current location section — shown when: (original known AND not in situ) OR original unknown */}
         {showCurrentLocationSection && (
-          <div style={{
-            marginTop: '24px',
-            paddingTop: '20px',
-            borderTop: form.original_location_known ? `0.5px solid ${c.borderLight}` : 'none',
-          }}>
+          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: form.original_location_known ? `0.5px solid ${c.borderLight}` : 'none' }}>
             {form.original_location_known && (
               <p style={{ fontSize: '12px', color: c.textDim, fontStyle: 'italic', marginBottom: '16px', lineHeight: 1.6 }}>
                 Since the inscription is not in situ, it may have been relocated. Do you know where it is now?
               </p>
             )}
-
-            {/* Q2: Is current location known? */}
             <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>IS THE CURRENT LOCATION KNOWN?</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {yesNoBtn(form.current_location_known === true, () => set('current_location_known', true), 'YES')}
-                {yesNoBtn(form.current_location_known === false, () => {
-                  setForm(prev => ({ ...prev, current_location_known: false }))
-                  setShowCurrentMap(false)
-                }, 'NO')}
+                {yesNoBtn(form.current_location_known === false, () => { setForm(prev => ({ ...prev, current_location_known: false })); setShowCurrentMap(false) }, 'NO')}
               </div>
             </div>
-
-            {/* Current location fields */}
             {form.current_location_known && (
               <>
                 <div style={{ marginBottom: '16px' }}>
@@ -931,17 +793,11 @@ export default function Submit() {
                     {CURRENT_LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
-
                 <div style={{ marginBottom: '16px' }}>
                   <label style={labelStyle}>INSTITUTION / COLLECTION NAME</label>
-                  <input
-                    style={inputStyle}
-                    placeholder="e.g. National Museum New Delhi · Shri Ram Temple, Nashik · Private collection"
-                    value={form.current_location}
-                    onChange={e => set('current_location', e.target.value)}
-                  />
+                  <input style={inputStyle} placeholder="e.g. National Museum New Delhi · Shri Ram Temple, Nashik · Private collection"
+                    value={form.current_location} onChange={e => set('current_location', e.target.value)} />
                 </div>
-
                 <div style={{ ...grid2, marginBottom: '16px' }}>
                   <div>
                     <label style={labelStyle}>CITY</label>
@@ -955,14 +811,8 @@ export default function Submit() {
                     </select>
                   </div>
                 </div>
-
-                {/* Private collection: no map coordinates */}
                 {isPrivateCollection ? (
-                  <div style={{
-                    background: theme === 'dark' ? 'rgba(186,117,23,0.08)' : 'rgba(186,117,23,0.06)',
-                    borderLeft: `3px solid ${c.textDim}`, borderRadius: '0 4px 4px 0',
-                    padding: '10px 14px', marginBottom: '16px',
-                  }}>
+                  <div style={{ background: theme === 'dark' ? 'rgba(186,117,23,0.08)' : 'rgba(186,117,23,0.06)', borderLeft: `3px solid ${c.textDim}`, borderRadius: '0 4px 4px 0', padding: '10px 14px', marginBottom: '16px' }}>
                     <p style={{ fontSize: '12px', color: c.textDim, lineHeight: 1.6, margin: 0 }}>
                       Private collection locations are not shown on the public map to protect the owner's privacy.
                     </p>
@@ -979,17 +829,13 @@ export default function Submit() {
                         <input style={inputStyle} type="number" step="any" placeholder="e.g. 77.2090" value={form.current_lng} onChange={e => set('current_lng', e.target.value)} />
                       </div>
                     </div>
-
                     {mapToggleBtn(showCurrentMap, () => setShowCurrentMap(v => !v), 'HIDE MAP', 'PIN CURRENT LOCATION ON MAP (OPTIONAL)')}
-
                     {showCurrentMap && (
                       <div style={{ marginBottom: '20px' }}>
                         <div ref={currentMapContainerRef} style={{ height: '280px', borderRadius: '6px', border: `0.5px solid ${c.border}`, overflow: 'hidden' }} />
                         <p style={{ fontSize: '11px', color: c.textDim, marginTop: '8px', fontFamily: 'Arial, sans-serif', lineHeight: 1.5 }}>
                           Click anywhere on the map to place a pin. Drag to fine-tune.
-                          {form.current_lat && form.current_lng && (
-                            <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.current_lat).toFixed(4)}, {parseFloat(form.current_lng).toFixed(4)}</span>
-                          )}
+                          {form.current_lat && form.current_lng && <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.current_lat).toFixed(4)}, {parseFloat(form.current_lng).toFixed(4)}</span>}
                         </p>
                       </div>
                     )}
@@ -1096,21 +942,16 @@ export default function Submit() {
           </div>
         )}
         {photos.length < MAX_PHOTOS && (
-          <div
-            onClick={() => fileInputRef.current?.click()}
+          <div onClick={() => fileInputRef.current?.click()}
             style={{ border: `1px dashed ${c.border}`, borderRadius: '6px', padding: '32px 24px', textAlign: 'center', cursor: 'pointer', marginBottom: '16px', transition: 'border-color 0.2s' }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
             onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c.textDim} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px', display: 'block' }}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
             </svg>
             <p style={{ fontSize: '13px', color: c.textDim, marginBottom: '4px' }}>Click to add photos</p>
-            <p style={{ fontSize: '11px', color: c.textFaint }}>
-              {photos.length} / {MAX_PHOTOS} photos added · JPG, PNG · Max 6MB each
-            </p>
+            <p style={{ fontSize: '11px', color: c.textFaint }}>{photos.length} / {MAX_PHOTOS} photos added · JPG, PNG · Max 6MB each</p>
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
           </div>
         )}
@@ -1119,8 +960,7 @@ export default function Submit() {
             {photoPreviews.map((src, i) => (
               <div key={i} style={{ position: 'relative', borderRadius: '4px', overflow: 'hidden', aspectRatio: '4/3', background: c.borderLight }}>
                 <img src={src} onClick={() => setLightboxIndex(i)} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in', display: 'block' }} />
-                <button onClick={() => removePhoto(i)}
-                  style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                <button onClick={() => removePhoto(i)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                 <div style={{ position: 'absolute', bottom: '6px', left: '6px', background: 'rgba(0,0,0,0.5)', borderRadius: '3px', padding: '2px 6px' }}>
                   <p style={{ fontSize: '10px', color: '#fff', margin: 0 }}>{i + 1}</p>
                 </div>
@@ -1163,22 +1003,9 @@ export default function Submit() {
 
         {/* ══ Submit ══ */}
         <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: `0.5px solid ${c.borderLight}` }}>
-          <div style={{ marginBottom: '16px' }}>
-            <Turnstile
-              key={turnstileKey}
-              siteKey={siteKey}
-              onSuccess={token => setTurnstileToken(token)}
-              onError={() => setTurnstileToken(null)}
-              onExpire={() => setTurnstileToken(null)}
-              options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
-            />
-          </div>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !turnstileToken}
-              style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 36px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: (submitting || !turnstileToken) ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: (submitting || !turnstileToken) ? 0.5 : 1 }}
-            >
+            <button onClick={handleSubmit} disabled={submitting}
+              style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '12px 36px', borderRadius: '4px', fontSize: '12px', letterSpacing: '.1em', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: submitting ? 0.5 : 1 }}>
               {uploadingPhotos ? 'UPLOADING PHOTOS...' : submitting ? 'SUBMITTING...' : 'SUBMIT FOR REVIEW'}
             </button>
             <p style={{ fontSize: '11px', color: c.textFaint, lineHeight: 1.6 }}>Your submission will be reviewed before appearing in the public database.</p>
