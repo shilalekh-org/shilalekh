@@ -21,7 +21,7 @@ const COUNTRIES = [
 
 export default function SignIn() {
   const navigate = useNavigate()
-  const { c, theme } = useTheme()
+  const { c } = useTheme()
   const [mode, setMode] = useState<Mode>('signin')
 
   const [email, setEmail] = useState('')
