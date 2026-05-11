@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { useTheme } from '../theme'
 
+// ─── Pin colours (keep in sync with MapPage.tsx) ──────────────────────────────
+const PIN_GOLD   = '#d4a843'
+const PIN_AMBER  = '#c87533'
+const PIN_SILVER = '#a0a0aa'
+
+const PinSvg = ({ color, size = 16 }: { color: string; size?: number }) => (
+  <svg width={size * 0.65} height={size} viewBox="0 0 22 34" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <path d="M11 0C5.477 0 1 4.477 1 10c0 8 10 24 10 24S21 18 21 10C21 4.477 16.523 0 11 0z"
+      fill={color} stroke="rgba(0,0,0,0.22)" strokeWidth="1.2"/>
+    <circle cx="11" cy="10" r="4" fill="rgba(0,0,0,0.16)"/>
+  </svg>
+)
+
+// ─── FAQ data ─────────────────────────────────────────────────────────────────
 const FAQS = [
   {
     q: 'What is Shilalekh?',
@@ -53,6 +67,7 @@ const ARTICLES = [
   },
 ]
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function Help() {
   const navigate = useNavigate()
   const { c } = useTheme()
@@ -68,7 +83,6 @@ export default function Help() {
     marginBottom: '8px',
   }
 
-  // Last FAQ rendered separately to support the Privacy Policy link
   const lastFaq = {
     q: 'How is my personal data handled?',
     a: (
@@ -102,7 +116,7 @@ export default function Help() {
           Answers to common questions, guides for contributors, and ways to get in touch.
         </p>
 
-        {/* FAQ Section */}
+        {/* ── FAQ Section ── */}
         <p style={sectionHeadStyle}>FREQUENTLY ASKED QUESTIONS</p>
         <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: c.text, marginBottom: '24px' }}>Common questions</h2>
 
@@ -127,7 +141,7 @@ export default function Help() {
           ))}
         </div>
 
-        {/* Knowledge Articles */}
+        {/* ── Knowledge Articles ── */}
         <p style={sectionHeadStyle}>KNOWLEDGE ARTICLES</p>
         <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: c.text, marginBottom: '24px' }}>Guides for contributors</h2>
 
@@ -140,7 +154,77 @@ export default function Help() {
           ))}
         </div>
 
-        {/* Contact Section */}
+        {/* ── Map Pin Legend ── */}
+        <p style={sectionHeadStyle}>THE MAP</p>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: c.text, marginBottom: '12px' }}>Understanding map pins</h2>
+        <p style={{ fontSize: '13px', color: c.textDim, lineHeight: 1.9, marginBottom: '28px' }}>
+          Shilalekh distinguishes between an inscription's <em>original location</em> — where it was first carved or placed — and its <em>current location</em>, which may be a museum, temple, or private collection. Pin colours on the map reflect this distinction at a glance.
+        </p>
+
+        <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+          {[
+            {
+              color: PIN_GOLD,
+              label: 'Gold pin — In situ',
+              desc: 'The inscription remains exactly where it was originally placed. The pin marks its true historical site. This is the ideal condition for field researchers.',
+            },
+            {
+              color: PIN_AMBER,
+              label: 'Amber pin — Moved',
+              desc: 'The original location is known and the pin marks it, but the inscription itself has since been relocated — to a museum, temple store-room, or other site. The current location, if known, is noted in the record.',
+            },
+            {
+              color: PIN_SILVER,
+              label: 'Silver pin — Current location only',
+              desc: 'The original location is not known. The pin marks where the inscription can be found today — typically a museum, institution, or religious site. The record notes that the provenance is uncertain.',
+            },
+          ].map(({ color, label, desc }) => (
+            <div key={label} style={{
+              display: 'flex', gap: '18px', alignItems: 'flex-start',
+              background: c.bgSecondary,
+              border: `0.5px solid ${c.borderLight}`,
+              borderRadius: '6px',
+              padding: '16px 18px',
+            }}>
+              <PinSvg color={color} size={28} />
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: c.text, marginBottom: '5px', letterSpacing: '.01em' }}>{label}</p>
+                <p style={{ fontSize: '13px', color: c.textDim, lineHeight: 1.8, margin: 0 }}>{desc}</p>
+              </div>
+            </div>
+          ))}
+
+          {/* No pin entry */}
+          <div style={{
+            display: 'flex', gap: '18px', alignItems: 'flex-start',
+            background: c.bgSecondary,
+            border: `0.5px solid ${c.borderLight}`,
+            borderRadius: '6px',
+            padding: '16px 18px',
+          }}>
+            <div style={{ width: 18, display: 'flex', justifyContent: 'center', paddingTop: '4px', flexShrink: 0 }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', border: `1.5px solid ${c.textDim}` }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: c.textDim, marginBottom: '5px', letterSpacing: '.01em' }}>No pin — Location unknown</p>
+              <p style={{ fontSize: '13px', color: c.textDim, lineHeight: 1.8, margin: 0 }}>
+                Both the original and current locations are unknown. The record still exists in the database and is fully searchable — it simply does not appear on the map. This covers lost artefacts, missing inscriptions, and records where only a general region is known.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          borderLeft: `1.5px solid ${c.borderLight}`,
+          paddingLeft: '18px',
+          marginBottom: '56px',
+        }}>
+          <p style={{ fontSize: '12px', color: c.textDim, lineHeight: 1.9, margin: 0, fontStyle: 'italic' }}>
+            When submitting an inscription, the form will ask you to specify whether the original location is known and whether the inscription is still in situ. Your answers determine which pin colour is assigned automatically — you do not need to choose it manually.
+          </p>
+        </div>
+
+        {/* ── Contact ── */}
         <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '40px' }}>
           <p style={sectionHeadStyle}>CONTACT</p>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 300, color: c.text, marginBottom: '16px' }}>Still need help?</h2>

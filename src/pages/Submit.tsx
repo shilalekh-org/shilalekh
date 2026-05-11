@@ -11,6 +11,7 @@ import 'leaflet/dist/leaflet.css'
 const TYPES = ['Rock Edict', 'Temple', 'Cave', 'Copper Plate', 'Bilingual', 'Victory', 'Commemorative', 'Dedicatory', 'Donative', 'Other']
 const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Fragmentary', 'Lost']
 const ERAS = ['BCE', 'CE']
+const CURRENT_LOCATION_TYPES = ['Museum', 'Temple / Religious Site', 'University / Research Institution', 'Private Collection', 'Government Archive', 'Other']
 const MAX_PHOTOS = 5
 const MAX_FILE_SIZE = 6 * 1024 * 1024
 
@@ -214,12 +215,19 @@ export default function Submit() {
   const [photoErrors, setPhotoErrors] = useState<string[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  // Original location map
   const [showMap, setShowMap] = useState(false)
-  const [showInSituTooltip, setShowInSituTooltip] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markerRef = useRef<any>(null)
+  // Current location map
+  const [showCurrentMap, setShowCurrentMap] = useState(false)
+  const currentMapContainerRef = useRef<HTMLDivElement>(null)
+  const currentMapInstanceRef = useRef<any>(null)
+  const currentMarkerRef = useRef<any>(null)
+  // UI state
+  const [showInSituTooltip, setShowInSituTooltip] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
@@ -227,13 +235,23 @@ export default function Submit() {
     title: '',
     type: '',
     short_description: '',
+    // Original location
+    original_location_known: true as boolean,
     country: '',
     state_province: '',
     village_town_city: '',
-    current_location: '',
-    in_situ: false,
     latitude: '',
     longitude: '',
+    in_situ: false,
+    // Current location
+    current_location_known: false as boolean,
+    current_location_type: '',
+    current_location: '',
+    current_city: '',
+    current_country: '',
+    current_lat: '',
+    current_lng: '',
+    // Historical
     year: '',
     year_is_approximate: false,
     era: 'CE',
@@ -280,7 +298,7 @@ export default function Submit() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [lightboxIndex, photoPreviews.length])
 
-  // ── Leaflet map init / teardown ─────────────────────────────────────────────
+  // ── Original location map init / teardown ────────────────────────────────────
   useEffect(() => {
     if (!showMap) {
       if (mapInstanceRef.current) {
@@ -293,7 +311,6 @@ export default function Submit() {
     const timer = setTimeout(async () => {
       if (!mapContainerRef.current || mapInstanceRef.current) return
       const L = (await import('leaflet')).default
-      // Fix broken default icon paths in bundled environments
       delete (L.Icon.Default.prototype as any)._getIconUrl
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -306,10 +323,8 @@ export default function Submit() {
       const map = L.map(mapContainerRef.current).setView([initLat, initLng], initZoom)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
+        subdomains: 'abcd', maxZoom: 19,
       }).addTo(map)
-      // If coords already exist, place a draggable marker
       if (form.latitude && form.longitude) {
         const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
         m.on('dragend', () => {
@@ -318,7 +333,6 @@ export default function Submit() {
         })
         markerRef.current = m
       }
-      // Click to place / move marker
       map.on('click', (e: any) => {
         const { lat, lng } = e.latlng
         if (markerRef.current) {
@@ -338,23 +352,92 @@ export default function Submit() {
     return () => clearTimeout(timer)
   }, [showMap])
 
-  // ── Sync typed lat/lng → map marker ─────────────────────────────────────────
+  // ── Sync typed original lat/lng → map marker ─────────────────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current || !markerRef.current) return
     const lat = parseFloat(form.latitude)
     const lng = parseFloat(form.longitude)
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
       markerRef.current.setLatLng([lat, lng])
-    }
   }, [form.latitude, form.longitude])
 
-  // ── Cleanup map on unmount ───────────────────────────────────────────────────
+  // ── Current location map init / teardown ─────────────────────────────────────
+  useEffect(() => {
+    if (!showCurrentMap) {
+      if (currentMapInstanceRef.current) {
+        currentMapInstanceRef.current.remove()
+        currentMapInstanceRef.current = null
+        currentMarkerRef.current = null
+      }
+      return
+    }
+    const timer = setTimeout(async () => {
+      if (!currentMapContainerRef.current || currentMapInstanceRef.current) return
+      const L = (await import('leaflet')).default
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      })
+      const initLat = form.current_lat ? parseFloat(form.current_lat) : 20.5937
+      const initLng = form.current_lng ? parseFloat(form.current_lng) : 78.9629
+      const initZoom = form.current_lat ? 10 : 3
+      const map = L.map(currentMapContainerRef.current).setView([initLat, initLng], initZoom)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd', maxZoom: 19,
+      }).addTo(map)
+      if (form.current_lat && form.current_lng) {
+        const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
+        m.on('dragend', () => {
+          const pos = m.getLatLng()
+          setForm(prev => ({ ...prev, current_lat: pos.lat.toFixed(6), current_lng: pos.lng.toFixed(6) }))
+        })
+        currentMarkerRef.current = m
+      }
+      map.on('click', (e: any) => {
+        const { lat, lng } = e.latlng
+        if (currentMarkerRef.current) {
+          currentMarkerRef.current.setLatLng([lat, lng])
+        } else {
+          const m = L.marker([lat, lng], { draggable: true }).addTo(map)
+          m.on('dragend', () => {
+            const pos = m.getLatLng()
+            setForm(prev => ({ ...prev, current_lat: pos.lat.toFixed(6), current_lng: pos.lng.toFixed(6) }))
+          })
+          currentMarkerRef.current = m
+        }
+        setForm(prev => ({ ...prev, current_lat: lat.toFixed(6), current_lng: lng.toFixed(6) }))
+      })
+      currentMapInstanceRef.current = map
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [showCurrentMap])
+
+  // ── Sync typed current lat/lng → current map marker ──────────────────────────
+  useEffect(() => {
+    if (!currentMapInstanceRef.current || !currentMarkerRef.current) return
+    const lat = parseFloat(form.current_lat)
+    const lng = parseFloat(form.current_lng)
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
+      currentMarkerRef.current.setLatLng([lat, lng])
+  }, [form.current_lat, form.current_lng])
+
+  // ── Auto-hide current map when its section becomes invisible ─────────────────
+  useEffect(() => {
+    const currentSectionVisible =
+      (form.original_location_known && !form.in_situ) || !form.original_location_known
+    if (!currentSectionVisible || !form.current_location_known) {
+      setShowCurrentMap(false)
+    }
+  }, [form.original_location_known, form.in_situ, form.current_location_known])
+
+  // ── Cleanup both maps on unmount ─────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-      }
+      if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null }
+      if (currentMapInstanceRef.current) { currentMapInstanceRef.current.remove(); currentMapInstanceRef.current = null }
     }
   }, [])
 
@@ -366,6 +449,26 @@ export default function Submit() {
     setForm(prev => ({ ...prev, country, state_province: '' }))
 
   const stateOptions = STATES_BY_COUNTRY[form.country] || []
+
+  // YES / NO toggle button pair
+  const yesNoBtn = (active: boolean, onClick: () => void, label: string) => (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '7px 24px',
+        borderRadius: '4px',
+        border: `0.5px solid ${active ? c.gold : c.border}`,
+        background: active ? c.gold : 'transparent',
+        color: active ? '#0a0a0a' : c.textMuted,
+        fontSize: '11px',
+        letterSpacing: '.08em',
+        cursor: 'pointer',
+        fontFamily: 'Arial, sans-serif',
+        fontWeight: active ? 600 : 400,
+        transition: 'all 0.15s',
+      }}
+    >{label}</button>
+  )
 
   // ── Photo handlers ──────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -417,7 +520,7 @@ export default function Submit() {
     const errs: string[] = []
     if (!form.title.trim()) errs.push('Title is required.')
     if (!form.type) errs.push('Type is required.')
-    if (!form.country) errs.push('Country is required.')
+    if (form.original_location_known && !form.country) errs.push('Country is required when original location is known.')
     if (!turnstileToken) errs.push('Security check not complete. Please wait a moment.')
     setErrors(errs)
     if (errs.length) return
@@ -445,19 +548,60 @@ export default function Submit() {
       setUploadingPhotos(false)
     }
 
+    // Determine which location sections are active
+    const currentSectionActive =
+      (form.original_location_known && !form.in_situ) || !form.original_location_known
+    const hasCurrentLocation = currentSectionActive && form.current_location_known
+    const isPrivateCollection = form.current_location_type === 'Private Collection'
+
     const payload: any = {
-      ...form,
-      status: 'pending',
-      submitted_by: user.email,
-      photo_urls: photoUrls,
-      latitude: form.latitude ? parseFloat(form.latitude) : null,
-      longitude: form.longitude ? parseFloat(form.longitude) : null,
+      // Basic
+      title: form.title,
+      type: form.type,
+      short_description: form.short_description,
+      condition: form.condition || null,
+      // Original location
+      original_location_known: form.original_location_known,
+      country: form.original_location_known ? form.country : null,
+      state_province: form.original_location_known ? form.state_province || null : null,
+      village_town_city: form.original_location_known ? form.village_town_city || null : null,
+      latitude: form.original_location_known && form.latitude ? parseFloat(form.latitude) : null,
+      longitude: form.original_location_known && form.longitude ? parseFloat(form.longitude) : null,
+      in_situ: form.original_location_known ? form.in_situ : false,
+      // Current location
+      current_location_known: hasCurrentLocation,
+      current_location_type: hasCurrentLocation ? form.current_location_type || null : null,
+      current_location: hasCurrentLocation ? form.current_location || null : null,
+      current_city: hasCurrentLocation ? form.current_city || null : null,
+      current_country: hasCurrentLocation ? form.current_country || null : null,
+      // Private collections do not get map coordinates
+      current_lat: hasCurrentLocation && !isPrivateCollection && form.current_lat ? parseFloat(form.current_lat) : null,
+      current_lng: hasCurrentLocation && !isPrivateCollection && form.current_lng ? parseFloat(form.current_lng) : null,
+      // Historical
+      year: form.year ? `${form.year} ${form.era}` : null,
+      year_is_approximate: form.year_is_approximate,
+      dynasty: form.dynasty || null,
+      reign_ruler: form.reign_ruler || null,
+      language: form.language,
+      script: form.script,
+      purpose: form.purpose || null,
+      actual_text: form.actual_text || null,
+      transliteration: form.transliteration || null,
+      translation_english: form.translation_english || null,
+      importance: form.importance || null,
+      detailed_information: form.detailed_information || null,
+      first_discovered_by: form.first_discovered_by || null,
+      reading_done_by: form.reading_done_by || null,
+      credits: form.credits || null,
+      accession_number: form.accession_number || null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       width_cm: form.width_cm ? parseFloat(form.width_cm) : null,
       depth_cm: form.depth_cm ? parseFloat(form.depth_cm) : null,
-      year: form.year ? `${form.year} ${form.era}` : null,
+      // Meta
+      status: 'pending',
+      submitted_by: user.email,
+      photo_urls: photoUrls,
     }
-    delete payload.era
 
     const { error } = await supabase.from('inscriptions').insert([payload])
     setSubmitting(false)
@@ -495,6 +639,23 @@ export default function Submit() {
         {text}{required && <span style={{ color: c.orange }}> *</span>}
       </p>
     </div>
+  )
+
+  const mapToggleBtn = (show: boolean, onToggle: () => void, hideLabel: string, showLabel: string) => (
+    <button
+      onClick={onToggle}
+      style={{
+        background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim,
+        padding: '8px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.08em',
+        cursor: 'pointer', fontFamily: 'Arial, sans-serif', marginBottom: '16px',
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
+    >
+      <span>📍</span>
+      {show ? hideLabel : showLabel}
+    </button>
   )
 
   // ── Loading ─────────────────────────────────────────────────────────────────
@@ -535,6 +696,11 @@ export default function Submit() {
   )
 
   // ── Main form ───────────────────────────────────────────────────────────────
+  // Derived state for conditional rendering
+  const showCurrentLocationSection =
+    (form.original_location_known && !form.in_situ) || !form.original_location_known
+  const isPrivateCollection = form.current_location_type === 'Private Collection'
+
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
@@ -611,102 +777,226 @@ export default function Submit() {
         {/* ══ LOCATION ══ */}
         {sectionLabel('LOCATION')}
 
-        {/* Location note */}
-        <div style={{ background: theme === 'dark' ? 'rgba(186,117,23,0.12)' : 'rgba(186,117,23,0.07)', borderLeft: `3px solid ${c.orange}`, borderRadius: '0 4px 4px 0', padding: '10px 14px', marginBottom: '20px' }}>
-          <p style={{ fontSize: '12px', color: c.orange, lineHeight: 1.6, margin: 0 }}>
-            Enter the <strong>present-day location</strong> of the inscription — not its ancient or historical place of origin. If it has been moved to a museum, use the museum's location.
-          </p>
+        {/* Pin legend */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px',
+          background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+          border: `0.5px solid ${c.borderLight}`, borderRadius: '6px',
+          padding: '12px 14px', marginBottom: '24px',
+        }}>
+          <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, fontFamily: 'Arial, sans-serif', gridColumn: '1/-1', marginBottom: '8px' }}>HOW YOUR ENTRY WILL APPEAR ON THE MAP</p>
+          {[
+            { color: '#d4a843', label: 'Gold pin', desc: 'Original location · in situ' },
+            { color: '#c87533', label: 'Amber pin', desc: 'Original location · moved' },
+            { color: '#a8a8b0', label: 'Silver pin', desc: 'Current location · original unknown' },
+            { color: c.borderLight, label: 'No pin', desc: 'Both locations unknown' },
+          ].map(p => (
+            <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: p.color, flexShrink: 0, border: `1px solid ${c.border}` }} />
+              <div>
+                <span style={{ fontSize: '10px', color: c.text, fontFamily: 'Arial, sans-serif', fontWeight: 600 }}>{p.label}</span>
+                <span style={{ fontSize: '10px', color: c.textDim, fontFamily: 'Arial, sans-serif' }}> — {p.desc}</span>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Country + State dropdowns */}
-        <div style={{ ...grid2, marginBottom: '16px' }}>
-          <div>
-            <label style={labelStyle}>COUNTRY *</label>
-            <select style={selectStyle} value={form.country} onChange={e => handleCountryChange(e.target.value)}>
-              <option value="">Select country...</option>
-              {COUNTRIES.map(co => <option key={co} value={co}>{co}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>STATE / PROVINCE</label>
-            {stateOptions.length > 0 ? (
-              <select style={selectStyle} value={form.state_province} onChange={e => set('state_province', e.target.value)}>
-                <option value="">Select state / province...</option>
-                {stateOptions.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            ) : (
-              <input style={inputStyle} placeholder="e.g. Île-de-France" value={form.state_province} onChange={e => set('state_province', e.target.value)} />
-            )}
-          </div>
-        </div>
-
-        {/* Village + Current location */}
-        <div style={{ ...grid2, marginBottom: '16px' }}>
-          <div>
-            <label style={labelStyle}>VILLAGE / TOWN / CITY</label>
-            <input style={inputStyle} placeholder="e.g. Raigad" value={form.village_town_city} onChange={e => set('village_town_city', e.target.value)} />
-          </div>
-          <div>
-            <label style={labelStyle}>CURRENT LOCATION</label>
-            <input style={inputStyle} placeholder="e.g. National Museum, New Delhi" value={form.current_location} onChange={e => set('current_location', e.target.value)} />
+        {/* Q1: Is original location known? */}
+        <div style={{ marginBottom: '24px' }}>
+          <label style={labelStyle}>IS THE ORIGINAL LOCATION KNOWN?</label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {yesNoBtn(form.original_location_known === true, () => {
+              set('original_location_known', true)
+            }, 'YES')}
+            {yesNoBtn(form.original_location_known === false, () => {
+              setForm(prev => ({ ...prev, original_location_known: false }))
+              setShowMap(false)
+            }, 'NO')}
           </div>
         </div>
 
-        {/* In situ checkbox */}
-        <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <input type="checkbox" id="in_situ" checked={form.in_situ} onChange={e => set('in_situ', e.target.checked)}
-            style={{ accentColor: c.gold, width: '14px', height: '14px', cursor: 'pointer' }} />
-          <label htmlFor="in_situ" style={{ ...labelStyle, marginBottom: 0, cursor: 'pointer' }}>INSCRIPTION IS IN SITU</label>
-          {/* ? tooltip */}
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <span
-              onMouseEnter={() => setShowInSituTooltip(true)}
-              onMouseLeave={() => setShowInSituTooltip(false)}
-              style={{ width: '16px', height: '16px', borderRadius: '50%', border: `1px solid ${c.textDim}`, color: c.textDim, fontSize: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontFamily: 'Arial, sans-serif', userSelect: 'none' as const, flexShrink: 0 }}
-            >?</span>
-            {showInSituTooltip && (
-              <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: theme === 'dark' ? '#1c1c1c' : '#fffaf3', color: c.text, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', fontSize: '12px', lineHeight: 1.6, width: '280px', zIndex: 200, pointerEvents: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-                <strong>In situ</strong> means the inscription remains exactly where it was first carved or installed — its original location. If it has been moved to a museum, temple store-room, or any other site, it is <em>not</em> in situ.
+        {/* Original location fields — shown when original is known */}
+        {form.original_location_known && (
+          <>
+            <div style={{ ...grid2, marginBottom: '16px' }}>
+              <div>
+                <label style={labelStyle}>COUNTRY *</label>
+                <select style={selectStyle} value={form.country} onChange={e => handleCountryChange(e.target.value)}>
+                  <option value="">Select country...</option>
+                  {COUNTRIES.map(co => <option key={co} value={co}>{co}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>STATE / PROVINCE</label>
+                {stateOptions.length > 0 ? (
+                  <select style={selectStyle} value={form.state_province} onChange={e => set('state_province', e.target.value)}>
+                    <option value="">Select state / province...</option>
+                    {stateOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input style={inputStyle} placeholder="e.g. Île-de-France" value={form.state_province} onChange={e => set('state_province', e.target.value)} />
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={labelStyle}>VILLAGE / TOWN / CITY</label>
+              <input style={inputStyle} placeholder="e.g. Raigad" value={form.village_town_city} onChange={e => set('village_town_city', e.target.value)} />
+            </div>
+
+            <div style={{ ...grid2, marginBottom: '12px' }}>
+              <div>
+                <label style={labelStyle}>LATITUDE</label>
+                <input style={inputStyle} type="number" step="any" placeholder="e.g. 18.2637" value={form.latitude} onChange={e => set('latitude', e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>LONGITUDE</label>
+                <input style={inputStyle} type="number" step="any" placeholder="e.g. 73.4403" value={form.longitude} onChange={e => set('longitude', e.target.value)} />
+              </div>
+            </div>
+
+            {mapToggleBtn(showMap, () => setShowMap(v => !v), 'HIDE MAP', "DON'T KNOW THE COORDINATES? PIN ON MAP")}
+
+            {showMap && (
+              <div style={{ marginBottom: '20px' }}>
+                <div ref={mapContainerRef} style={{ height: '320px', borderRadius: '6px', border: `0.5px solid ${c.border}`, overflow: 'hidden' }} />
+                <p style={{ fontSize: '11px', color: c.textDim, marginTop: '8px', fontFamily: 'Arial, sans-serif', lineHeight: 1.5 }}>
+                  Click anywhere on the map to place a pin. Drag to fine-tune. Coordinates fill in automatically.
+                  {form.latitude && form.longitude && (
+                    <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}</span>
+                  )}
+                </p>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Lat / Lng */}
-        <div style={{ ...grid2, marginBottom: '12px' }}>
-          <div>
-            <label style={labelStyle}>LATITUDE</label>
-            <input style={inputStyle} type="number" step="any" placeholder="e.g. 18.2637" value={form.latitude}
-              onChange={e => set('latitude', e.target.value)} />
-          </div>
-          <div>
-            <label style={labelStyle}>LONGITUDE</label>
-            <input style={inputStyle} type="number" step="any" placeholder="e.g. 73.4403" value={form.longitude}
-              onChange={e => set('longitude', e.target.value)} />
-          </div>
-        </div>
+            {/* In situ */}
+            <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input
+                type="checkbox" id="in_situ" checked={form.in_situ}
+                onChange={e => {
+                  set('in_situ', e.target.checked)
+                  if (e.target.checked) setShowCurrentMap(false)
+                }}
+                style={{ accentColor: c.gold, width: '14px', height: '14px', cursor: 'pointer' }}
+              />
+              <label htmlFor="in_situ" style={{ ...labelStyle, marginBottom: 0, cursor: 'pointer' }}>INSCRIPTION IS IN SITU</label>
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <span
+                  onMouseEnter={() => setShowInSituTooltip(true)}
+                  onMouseLeave={() => setShowInSituTooltip(false)}
+                  style={{ width: '16px', height: '16px', borderRadius: '50%', border: `1px solid ${c.textDim}`, color: c.textDim, fontSize: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontFamily: 'Arial, sans-serif', userSelect: 'none' as const, flexShrink: 0 }}
+                >?</span>
+                {showInSituTooltip && (
+                  <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: theme === 'dark' ? '#1c1c1c' : '#fffaf3', color: c.text, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', fontSize: '12px', lineHeight: 1.6, width: '280px', zIndex: 200, pointerEvents: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                    <strong>In situ</strong> means the inscription remains exactly where it was first carved or installed. If it has been moved to a museum, temple store-room, or any other site, it is <em>not</em> in situ.
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
-        {/* Pin on map toggle */}
-        <button
-          onClick={() => setShowMap(v => !v)}
-          style={{ background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '8px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.08em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
-        >
-          <span>📍</span>
-          {showMap ? 'HIDE MAP' : "DON'T KNOW THE COORDINATES? PIN ON MAP"}
-        </button>
+        {/* Current location section — shown when: (original known AND not in situ) OR original unknown */}
+        {showCurrentLocationSection && (
+          <div style={{
+            marginTop: '24px',
+            paddingTop: '20px',
+            borderTop: form.original_location_known ? `0.5px solid ${c.borderLight}` : 'none',
+          }}>
+            {form.original_location_known && (
+              <p style={{ fontSize: '12px', color: c.textDim, fontStyle: 'italic', marginBottom: '16px', lineHeight: 1.6 }}>
+                Since the inscription is not in situ, it may have been relocated. Do you know where it is now?
+              </p>
+            )}
 
-        {/* Leaflet map container */}
-        {showMap && (
-          <div style={{ marginBottom: '20px' }}>
-            <div ref={mapContainerRef} style={{ height: '320px', borderRadius: '6px', border: `0.5px solid ${c.border}`, overflow: 'hidden' }} />
-            <p style={{ fontSize: '11px', color: c.textDim, marginTop: '8px', fontFamily: 'Arial, sans-serif', lineHeight: 1.5 }}>
-              Click anywhere on the map to place a pin. Drag the pin to fine-tune. Coordinates fill in automatically.
-              {form.latitude && form.longitude && (
-                <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}</span>
-              )}
-            </p>
+            {/* Q2: Is current location known? */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>IS THE CURRENT LOCATION KNOWN?</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {yesNoBtn(form.current_location_known === true, () => set('current_location_known', true), 'YES')}
+                {yesNoBtn(form.current_location_known === false, () => {
+                  setForm(prev => ({ ...prev, current_location_known: false }))
+                  setShowCurrentMap(false)
+                }, 'NO')}
+              </div>
+            </div>
+
+            {/* Current location fields */}
+            {form.current_location_known && (
+              <>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={labelStyle}>LOCATION TYPE</label>
+                  <select style={selectStyle} value={form.current_location_type} onChange={e => set('current_location_type', e.target.value)}>
+                    <option value="">Select type...</option>
+                    {CURRENT_LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={labelStyle}>INSTITUTION / COLLECTION NAME</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="e.g. National Museum New Delhi · Shri Ram Temple, Nashik · Private collection"
+                    value={form.current_location}
+                    onChange={e => set('current_location', e.target.value)}
+                  />
+                </div>
+
+                <div style={{ ...grid2, marginBottom: '16px' }}>
+                  <div>
+                    <label style={labelStyle}>CITY</label>
+                    <input style={inputStyle} placeholder="e.g. New Delhi" value={form.current_city} onChange={e => set('current_city', e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>COUNTRY</label>
+                    <select style={selectStyle} value={form.current_country} onChange={e => set('current_country', e.target.value)}>
+                      <option value="">Select country...</option>
+                      {COUNTRIES.map(co => <option key={co} value={co}>{co}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Private collection: no map coordinates */}
+                {isPrivateCollection ? (
+                  <div style={{
+                    background: theme === 'dark' ? 'rgba(186,117,23,0.08)' : 'rgba(186,117,23,0.06)',
+                    borderLeft: `3px solid ${c.textDim}`, borderRadius: '0 4px 4px 0',
+                    padding: '10px 14px', marginBottom: '16px',
+                  }}>
+                    <p style={{ fontSize: '12px', color: c.textDim, lineHeight: 1.6, margin: 0 }}>
+                      Private collection locations are not shown on the public map to protect the owner's privacy.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ ...grid2, marginBottom: '12px' }}>
+                      <div>
+                        <label style={labelStyle}>LATITUDE (optional)</label>
+                        <input style={inputStyle} type="number" step="any" placeholder="e.g. 28.6139" value={form.current_lat} onChange={e => set('current_lat', e.target.value)} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>LONGITUDE (optional)</label>
+                        <input style={inputStyle} type="number" step="any" placeholder="e.g. 77.2090" value={form.current_lng} onChange={e => set('current_lng', e.target.value)} />
+                      </div>
+                    </div>
+
+                    {mapToggleBtn(showCurrentMap, () => setShowCurrentMap(v => !v), 'HIDE MAP', 'PIN CURRENT LOCATION ON MAP (OPTIONAL)')}
+
+                    {showCurrentMap && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <div ref={currentMapContainerRef} style={{ height: '280px', borderRadius: '6px', border: `0.5px solid ${c.border}`, overflow: 'hidden' }} />
+                        <p style={{ fontSize: '11px', color: c.textDim, marginTop: '8px', fontFamily: 'Arial, sans-serif', lineHeight: 1.5 }}>
+                          Click anywhere on the map to place a pin. Drag to fine-tune.
+                          {form.current_lat && form.current_lng && (
+                            <span style={{ color: c.orange }}> · Pinned at {parseFloat(form.current_lat).toFixed(4)}, {parseFloat(form.current_lng).toFixed(4)}</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
 
