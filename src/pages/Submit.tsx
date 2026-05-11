@@ -502,7 +502,7 @@ export default function Submit() {
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       width_cm: form.width_cm ? parseFloat(form.width_cm) : null,
       depth_cm: form.depth_cm ? parseFloat(form.depth_cm) : null,
-      status: 'pending', submitted_by: user.email, photo_urls: photoUrls,
+      status: 'pending', submitted_by: user.id, photo_urls: photoUrls,
     }
 
     const { error } = await supabase.from('inscriptions').insert([payload])
