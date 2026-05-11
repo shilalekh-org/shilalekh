@@ -63,9 +63,10 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchData() {
+      // ── photo_urls included so cards can show images ──
       const { data } = await supabase
         .from('inscriptions')
-        .select('id, title, type, state_province, country, year, script')
+        .select('id, title, type, state_province, country, year, script, photo_urls')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
 
@@ -235,14 +236,26 @@ export default function Home() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
               >
-                <div style={{ height: '140px', background: c.bg, borderBottom: `0.5px solid ${c.borderLight}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.2 }}>
-                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1"/>
-                    <circle cx="8.5" cy="10.5" r="1.5" stroke="currentColor" strokeWidth="1"/>
-                    <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
-                  </svg>
-                  <p style={{ fontSize: '9px', color: c.textFaint, letterSpacing: '.12em', fontFamily: 'Arial, sans-serif' }}>NO IMAGE AVAILABLE</p>
-                </div>
+                {/* ── Card image: show photo if available, else placeholder ── */}
+                {inscription.photo_urls?.[0] ? (
+                  <div style={{ height: '160px', overflow: 'hidden', borderBottom: `0.5px solid ${c.borderLight}` }}>
+                    <img
+                      src={inscription.photo_urls[0]}
+                      alt={inscription.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ height: '160px', background: c.bg, borderBottom: `0.5px solid ${c.borderLight}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.2 }}>
+                      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1"/>
+                      <circle cx="8.5" cy="10.5" r="1.5" stroke="currentColor" strokeWidth="1"/>
+                      <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
+                    </svg>
+                    <p style={{ fontSize: '9px', color: c.textFaint, letterSpacing: '.12em', fontFamily: 'Arial, sans-serif' }}>NO IMAGE AVAILABLE</p>
+                  </div>
+                )}
+
                 <div style={{ padding: '16px 18px' }}>
                   {inscription.type && (
                     <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.orange, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>{inscription.type.toUpperCase()}</p>
@@ -279,59 +292,35 @@ export default function Home() {
 
           {/* Layer switcher */}
           <div style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            zIndex: 1000,
-            display: 'flex',
-            borderRadius: '5px',
-            overflow: 'hidden',
+            position: 'absolute', top: '12px', right: '12px', zIndex: 1000,
+            display: 'flex', borderRadius: '5px', overflow: 'hidden',
             border: theme === 'dark' ? '0.5px solid rgba(232,216,176,0.25)' : '0.5px solid rgba(61,42,10,0.2)',
             boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
           }}>
             {LAYERS.map((layer, i) => (
-              <button
-                key={layer.id}
-                onClick={() => setActiveLayer(layer.id)}
-                style={{
-                  ...layerBtnStyle(layer.id),
-                  borderRight: i < LAYERS.length - 1
-                    ? (theme === 'dark' ? '0.5px solid rgba(232,216,176,0.15)' : '0.5px solid rgba(61,42,10,0.15)')
-                    : 'none',
-                }}
-              >
-                {layer.label}
-              </button>
+              <button key={layer.id} onClick={() => setActiveLayer(layer.id)} style={{
+                ...layerBtnStyle(layer.id),
+                borderRight: i < LAYERS.length - 1
+                  ? (theme === 'dark' ? '0.5px solid rgba(232,216,176,0.15)' : '0.5px solid rgba(61,42,10,0.15)')
+                  : 'none',
+              }}>{layer.label}</button>
             ))}
           </div>
 
-          <MapContainer
-            center={[20.5937, 78.9629]}
-            zoom={3}
-            scrollWheelZoom={false}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              key={tileKey}
-              url={tileUrl}
-              attribution={currentLayer.attribution}
-            />
+          <MapContainer center={[20.5937, 78.9629]} zoom={3} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+            <TileLayer key={tileKey} url={tileUrl} attribution={currentLayer.attribution} />
             {mapInscriptions.map(ins => (
-              <Marker
-                key={ins.id}
-                position={[ins.latitude, ins.longitude]}
-                icon={defaultIcon}
-              >
+              <Marker key={ins.id} position={[ins.latitude, ins.longitude]} icon={defaultIcon}>
                 <Popup>
                   <div style={{ fontFamily: 'Georgia, serif', minWidth: '180px' }}>
                     <p style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#1a1a1a' }}>{ins.title}</p>
                     {ins.state_province && <p style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{ins.state_province}</p>}
                     {ins.country && <p style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{ins.country}</p>}
                     {ins.year && <p style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>{ins.year}</p>}
-                    <button
-                      onClick={() => navigate(`/inscription/${ins.id}`)}
-                      style={{ fontSize: '11px', background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '4px 12px', borderRadius: '3px', cursor: 'pointer', fontWeight: 600 }}
-                    >VIEW DETAILS</button>
+                    <button onClick={() => navigate(`/inscription/${ins.id}`)}
+                      style={{ fontSize: '11px', background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '4px 12px', borderRadius: '3px', cursor: 'pointer', fontWeight: 600 }}>
+                      VIEW DETAILS
+                    </button>
                   </div>
                 </Popup>
               </Marker>

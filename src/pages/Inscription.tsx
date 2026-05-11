@@ -10,6 +10,7 @@ export default function Inscription() {
   const { c } = useTheme()
   const [inscription, setInscription] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -24,6 +25,20 @@ export default function Inscription() {
       })
   }, [id])
 
+  // Lightbox keyboard nav
+  useEffect(() => {
+    const photos = inscription?.photo_urls || []
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null)
+      if (e.key === 'ArrowRight' && lightboxIndex !== null)
+        setLightboxIndex(i => i !== null && i < photos.length - 1 ? i + 1 : i)
+      if (e.key === 'ArrowLeft' && lightboxIndex !== null)
+        setLightboxIndex(i => i !== null && i > 0 ? i - 1 : i)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [lightboxIndex, inscription])
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>LOADING...</p>
@@ -37,12 +52,37 @@ export default function Inscription() {
     </div>
   )
 
+  const photos: string[] = inscription.photo_urls || []
+
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
+
+      {/* ── Lightbox ── */}
+      {lightboxIndex !== null && (
+        <div onClick={() => setLightboxIndex(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.93)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <img src={photos[lightboxIndex]} onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '4px' }} />
+          <button onClick={() => setLightboxIndex(null)}
+            style={{ position: 'absolute', top: '20px', right: '24px', background: 'transparent', border: 'none', color: '#fff', fontSize: '28px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+          {lightboxIndex > 0 && (
+            <button onClick={e => { e.stopPropagation(); setLightboxIndex(i => i! - 1) }}
+              style={{ position: 'absolute', left: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', padding: '12px 16px', borderRadius: '4px' }}>‹</button>
+          )}
+          {lightboxIndex < photos.length - 1 && (
+            <button onClick={e => { e.stopPropagation(); setLightboxIndex(i => i! + 1) }}
+              style={{ position: 'absolute', right: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', padding: '12px 16px', borderRadius: '4px' }}>›</button>
+          )}
+          <p style={{ position: 'absolute', bottom: '20px', color: 'rgba(255,255,255,0.5)', fontSize: '12px', letterSpacing: '.1em' }}>
+            {lightboxIndex + 1} / {photos.length} · Press Esc to close
+          </p>
+        </div>
+      )}
+
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 32px 60px' }}>
 
-        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '8px', cursor: 'pointer' }}
+        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '8px', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
           onClick={() => navigate('/inscriptions')}>← BACK TO INSCRIPTIONS</p>
 
         {/* Tags */}
@@ -62,10 +102,38 @@ export default function Inscription() {
 
         <div style={{ width: '40px', height: '0.5px', background: c.gold, marginBottom: '32px', opacity: .5 }} />
 
+        {/* ── PHOTOGRAPHS ── */}
+        {photos.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '14px', fontFamily: 'Arial, sans-serif' }}>PHOTOGRAPHS</p>
+            {/* Hero image */}
+            <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', cursor: 'zoom-in', border: `0.5px solid ${c.border}` }}
+              onClick={() => setLightboxIndex(0)}>
+              <img src={photos[0]} alt={inscription.title}
+                style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }} />
+            </div>
+            {/* Thumbnail strip for additional photos */}
+            {photos.length > 1 && (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(photos.length - 1, 4)}, 1fr)`, gap: '8px' }}>
+                {photos.slice(1).map((url, i) => (
+                  <div key={i} style={{ borderRadius: '4px', overflow: 'hidden', aspectRatio: '4/3', cursor: 'zoom-in', border: `0.5px solid ${c.border}` }}
+                    onClick={() => setLightboxIndex(i + 1)}>
+                    <img src={url} alt={`${inscription.title} ${i + 2}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: '10px', color: c.textFaint, marginTop: '8px', fontFamily: 'Arial, sans-serif', letterSpacing: '.05em' }}>
+              {photos.length} photo{photos.length > 1 ? 's' : ''} · Click to enlarge
+            </p>
+          </div>
+        )}
+
         {/* Short description */}
         {inscription.short_description && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>SHORT DESCRIPTION</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>SHORT DESCRIPTION</p>
             <p style={{ fontSize: '15px', color: c.text, lineHeight: 1.8 }}>{inscription.short_description}</p>
           </div>
         )}
@@ -85,7 +153,7 @@ export default function Inscription() {
             { label: 'Country', value: inscription.current_country },
           ].filter(f => f.value).map((f, i) => (
             <div key={i} style={{ background: c.bgCard, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '12px 14px' }}>
-              <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px' }}>{f.label.toUpperCase()}</p>
+              <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>{f.label.toUpperCase()}</p>
               <p style={{ fontSize: '13px', color: c.text, fontWeight: 300 }}>{f.value}</p>
             </div>
           ))}
@@ -94,7 +162,7 @@ export default function Inscription() {
         {/* Actual text */}
         {inscription.actual_text && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>ACTUAL TEXT</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>ACTUAL TEXT</p>
             <p style={{ fontSize: '16px', color: c.text, lineHeight: 2, fontFamily: 'Georgia, serif' }}>{inscription.actual_text}</p>
           </div>
         )}
@@ -102,7 +170,7 @@ export default function Inscription() {
         {/* Transliteration */}
         {inscription.transliteration && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>TRANSLITERATION</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLITERATION</p>
             <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.8, fontStyle: 'italic' }}>{inscription.transliteration}</p>
           </div>
         )}
@@ -110,7 +178,7 @@ export default function Inscription() {
         {/* Translation */}
         {inscription.translation_english && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>TRANSLATION</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLATION</p>
             <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.8 }}>{inscription.translation_english}</p>
           </div>
         )}
@@ -118,7 +186,7 @@ export default function Inscription() {
         {/* Importance */}
         {inscription.importance && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>IMPORTANCE</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>IMPORTANCE</p>
             <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8 }}>{inscription.importance}</p>
           </div>
         )}
@@ -126,7 +194,7 @@ export default function Inscription() {
         {/* Detailed information */}
         {inscription.detailed_information && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px' }}>DETAILED INFORMATION</p>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>DETAILED INFORMATION</p>
             <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8 }}>{inscription.detailed_information}</p>
           </div>
         )}
