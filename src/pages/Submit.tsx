@@ -5,10 +5,83 @@ import Nav from '../components/Nav'
 import { useTheme } from '../theme'
 import 'leaflet/dist/leaflet.css'
 
-// ─── Static data ──────────────────────────────────────────────────────────────
+// ─── Material categories + types ─────────────────────────────────────────────
 
-const TYPES = ['Rock Edict', 'Temple', 'Cave', 'Copper Plate', 'Bilingual', 'Victory', 'Commemorative', 'Dedicatory', 'Donative', 'Other']
-const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Fragmentary', 'Lost']
+const MATERIAL_CATEGORIES: { code: string; label: string; types: string[] }[] = [
+  { code: 'CL', label: 'Clay & Ceramic', types: [
+    'Brick', 'Clay Tablet', 'Ostracon', 'Pottery / Ceramic Sherd', 'Terracotta Seal', 'Tile / Terracotta Panel', 'Other',
+  ]},
+  { code: 'GS', label: 'Gem & Glass', types: [
+    'Gem / Intaglio / Cameo', 'Glass Object', 'Mosaic', 'Other',
+  ]},
+  { code: 'ME', label: 'Metal', types: [
+    'Amulet / Pendant', 'Bell', 'Bronze Object / Plate', 'Coin', 'Copper Plate Grant', 'Cylinder Seal',
+    'Gold Plate / Foil', 'Iron Object', 'Lead Tablet', 'Ring', 'Seal / Stamp / Signet',
+    'Silver Plate / Foil', 'Vessel / Utensil', 'Weapon / Armour', 'Other',
+  ]},
+  { code: 'OR', label: 'Organic', types: [
+    'Bone', 'Ivory', 'Papyrus', 'Shell / Conch', 'Vellum / Parchment', 'Wax Tablet', 'Wooden Tablet / Plank', 'Other',
+  ]},
+  { code: 'PA', label: 'Painted & Informal', types: [
+    'Fresco / Dipinto', 'Graffiti', 'Other',
+  ]},
+  { code: 'RO', label: 'Religious Object', types: [
+    'Buddha / Jina Image', 'Liṅga / Yoni', 'Sacred / Ritual Object', 'Votive Object', 'Other',
+  ]},
+  { code: 'ST', label: 'Stone & Rock', types: [
+    'Altar', 'Arch / Gateway', 'Balustrade', 'Boundary Marker', 'Cave Wall', 'Coping Stone / Crossbar',
+    'Doorjamb', 'Floor / Pavement Slab', 'Foundation Stone', 'Hero Stone / Memorial Stone',
+    'Lintel', 'Megalith / Monolith', 'Menhir / Standing Stone', 'Milestone / Distance Marker',
+    'Obelisk', 'Pillar / Column', 'Plaque', 'Rock Face / Natural Rock', 'Runestone',
+    'Sarcophagus', 'Sculpture / Statue Base', 'Stele', 'Stone Slab',
+    'Stūpa / Temple Railing', 'Temple Wall / Shrine', 'Tombstone / Gravestone',
+    'Water Tank / Stepwell', 'Yūpa', 'Other',
+  ]},
+  { code: 'OT', label: 'Other', types: ['Other'] },
+]
+
+// ─── Purposes ─────────────────────────────────────────────────────────────────
+
+const PURPOSES = [
+  'Administrative / Official Record',
+  'Astronomical / Calendar',
+  'Boundary / Land Grant',
+  'Building / Construction Record',
+  'Commemorative',
+  'Dedicatory',
+  'Diplomatic / Treaty',
+  'Donative / Gift Record',
+  'Epitaph / Funerary',
+  'Foundation Record',
+  'Genealogical / Dynastic',
+  'Historical Chronicle',
+  'Legal / Judicial',
+  'Magical / Ritual',
+  'Military / Victory',
+  'Ownership / Possession Mark',
+  'Pilgrimage Record',
+  'Religious / Devotional',
+  'Royal Edict / Proclamation',
+  'Trade / Commercial',
+  'Votive / Offering',
+  'Other',
+]
+
+// ─── Citation types ───────────────────────────────────────────────────────────
+
+const CITATION_TYPES = [
+  'ASI / Government Record',
+  'Database Reference',
+  'Museum Record',
+  'Personal Communication',
+  'Publication',
+  'Website / URL',
+  'Other',
+]
+
+// ─── Other static data ────────────────────────────────────────────────────────
+
+const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Fragmentary', 'Lost', 'Unknown']
 const ERAS = ['BCE', 'CE']
 const CURRENT_LOCATION_TYPES = ['Museum', 'Temple / Religious Site', 'University / Research Institution', 'Private Collection', 'Government Archive', 'Other']
 const MAX_PHOTOS = 5
@@ -70,93 +143,20 @@ const STATES_BY_COUNTRY: Record<string, string[]> = {
     'Dadra and Nagar Haveli and Daman and Diu',
     'Delhi (NCT)', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
   ],
-  'Pakistan': [
-    'Balochistan', 'Khyber Pakhtunkhwa', 'Punjab', 'Sindh',
-    'Azad Kashmir', 'Gilgit-Baltistan', 'Islamabad Capital Territory',
-  ],
-  'Bangladesh': [
-    'Barishal', 'Chattogram', 'Dhaka', 'Khulna',
-    'Mymensingh', 'Rajshahi', 'Rangpur', 'Sylhet',
-  ],
-  'Sri Lanka': [
-    'Central', 'Eastern', 'North Central', 'Northern',
-    'North Western', 'Sabaragamuwa', 'Southern', 'Uva', 'Western',
-  ],
-  'Afghanistan': [
-    'Badakhshan', 'Badghis', 'Baghlan', 'Balkh', 'Bamiyan', 'Daykundi',
-    'Farah', 'Faryab', 'Ghazni', 'Ghor', 'Helmand', 'Herat', 'Jowzjan',
-    'Kabul', 'Kandahar', 'Kapisa', 'Khost', 'Kunar', 'Kunduz', 'Laghman',
-    'Logar', 'Nangarhar', 'Nimroz', 'Nuristan', 'Paktia', 'Paktika',
-    'Panjshir', 'Parwan', 'Samangan', 'Sar-e Pol', 'Takhar', 'Uruzgan',
-    'Wardak', 'Zabul',
-  ],
-  'Myanmar': [
-    'Ayeyarwady', 'Bago', 'Chin', 'Kachin', 'Kayah', 'Kayin', 'Magway',
-    'Mandalay', 'Mon', 'Naypyidaw Union Territory', 'Rakhine', 'Sagaing',
-    'Shan', 'Tanintharyi', 'Yangon',
-  ],
-  'Nepal': [
-    'Bagmati', 'Gandaki', 'Karnali', 'Koshi', 'Lumbini', 'Madhesh', 'Sudurpashchim',
-  ],
-  'Iran': [
-    'Alborz', 'Ardabil', 'Bushehr', 'Chaharmahal and Bakhtiari', 'East Azerbaijan',
-    'Fars', 'Gilan', 'Golestan', 'Hamadan', 'Hormozgan', 'Ilam', 'Isfahan',
-    'Kerman', 'Kermanshah', 'Khuzestan', 'Kohgiluyeh and Boyer-Ahmad', 'Kurdistan',
-    'Lorestan', 'Markazi', 'Mazandaran', 'North Khorasan', 'Qazvin', 'Qom',
-    'Razavi Khorasan', 'Semnan', 'Sistan and Baluchestan', 'South Khorasan',
-    'Tehran', 'West Azerbaijan', 'Yazd', 'Zanjan',
-  ],
-  'China': [
-    'Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi',
-    'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hong Kong', 'Hubei',
-    'Hunan', 'Inner Mongolia', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Macau',
-    'Ningxia', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan',
-    'Tianjin', 'Tibet', 'Xinjiang', 'Yunnan', 'Zhejiang',
-  ],
-  'Iraq': [
-    'Al Anbar', 'Al Muthanna', 'Al-Qādisiyyah', 'Babylon', 'Baghdad', 'Basra',
-    'Dhi Qar', 'Diyala', 'Dohuk', 'Erbil', 'Halabja', 'Karbala', 'Kirkuk',
-    'Maysan', 'Najaf', 'Nineveh', 'Saladin', 'Sulaymaniyah', 'Wasit',
-  ],
-  'Egypt': [
-    'Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo',
-    'Dakahlia', 'Damietta', 'Faiyum', 'Gharbia', 'Giza', 'Ismailia',
-    'Kafr El Sheikh', 'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley',
-    'North Sinai', 'Port Said', 'Qalyubia', 'Qena', 'Red Sea',
-    'Sharqia', 'Sohag', 'South Sinai', 'Suez',
-  ],
-  'Cambodia': [
-    'Banteay Meanchey', 'Battambang', 'Kampong Cham', 'Kampong Chhnang',
-    'Kampong Speu', 'Kampong Thom', 'Kampot', 'Kandal', 'Kep', 'Koh Kong',
-    'Kratie', 'Mondulkiri', 'Oddar Meanchey', 'Pailin', 'Phnom Penh',
-    'Preah Sihanouk', 'Preah Vihear', 'Prey Veng', 'Pursat', 'Ratanakiri',
-    'Siem Reap', 'Stung Treng', 'Svay Rieng', 'Takeo', 'Tboung Khmum',
-  ],
-  'Greece': [
-    'Attica', 'Central Greece', 'Central Macedonia', 'Crete',
-    'Eastern Macedonia and Thrace', 'Epirus', 'Ionian Islands', 'North Aegean',
-    'Peloponnese', 'South Aegean', 'Thessaly', 'Western Greece', 'Western Macedonia',
-  ],
-  'Italy': [
-    'Abruzzo', 'Aosta Valley', 'Apulia', 'Basilicata', 'Calabria', 'Campania',
-    'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardy',
-    'Marche', 'Molise', 'Piedmont', 'Sardinia', 'Sicily',
-    'Trentino-South Tyrol', 'Tuscany', 'Umbria', 'Veneto',
-  ],
-  'Turkey': [
-    'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya', 'Ankara',
-    'Antalya', 'Ardahan', 'Artvin', 'Aydın', 'Balıkesir', 'Bartın', 'Batman',
-    'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur', 'Bursa',
-    'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Düzce', 'Edirne',
-    'Elazığ', 'Erzincan', 'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun',
-    'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır', 'Isparta', 'Istanbul', 'İzmir',
-    'Kahramanmaraş', 'Karabük', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri',
-    'Kilis', 'Kırıkkale', 'Kırklareli', 'Kırşehir', 'Kocaeli', 'Konya', 'Kütahya',
-    'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Muğla', 'Muş', 'Nevşehir', 'Niğde',
-    'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Şanlıurfa', 'Siirt',
-    'Sinop', 'Şırnak', 'Sivas', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli',
-    'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak',
-  ],
+  'Pakistan': ['Balochistan', 'Khyber Pakhtunkhwa', 'Punjab', 'Sindh', 'Azad Kashmir', 'Gilgit-Baltistan', 'Islamabad Capital Territory'],
+  'Bangladesh': ['Barishal', 'Chattogram', 'Dhaka', 'Khulna', 'Mymensingh', 'Rajshahi', 'Rangpur', 'Sylhet'],
+  'Sri Lanka': ['Central', 'Eastern', 'North Central', 'Northern', 'North Western', 'Sabaragamuwa', 'Southern', 'Uva', 'Western'],
+  'Afghanistan': ['Badakhshan', 'Badghis', 'Baghlan', 'Balkh', 'Bamiyan', 'Daykundi', 'Farah', 'Faryab', 'Ghazni', 'Ghor', 'Helmand', 'Herat', 'Jowzjan', 'Kabul', 'Kandahar', 'Kapisa', 'Khost', 'Kunar', 'Kunduz', 'Laghman', 'Logar', 'Nangarhar', 'Nimroz', 'Nuristan', 'Paktia', 'Paktika', 'Panjshir', 'Parwan', 'Samangan', 'Sar-e Pol', 'Takhar', 'Uruzgan', 'Wardak', 'Zabul'],
+  'Myanmar': ['Ayeyarwady', 'Bago', 'Chin', 'Kachin', 'Kayah', 'Kayin', 'Magway', 'Mandalay', 'Mon', 'Naypyidaw Union Territory', 'Rakhine', 'Sagaing', 'Shan', 'Tanintharyi', 'Yangon'],
+  'Nepal': ['Bagmati', 'Gandaki', 'Karnali', 'Koshi', 'Lumbini', 'Madhesh', 'Sudurpashchim'],
+  'Iran': ['Alborz', 'Ardabil', 'Bushehr', 'Chaharmahal and Bakhtiari', 'East Azerbaijan', 'Fars', 'Gilan', 'Golestan', 'Hamadan', 'Hormozgan', 'Ilam', 'Isfahan', 'Kerman', 'Kermanshah', 'Khuzestan', 'Kohgiluyeh and Boyer-Ahmad', 'Kurdistan', 'Lorestan', 'Markazi', 'Mazandaran', 'North Khorasan', 'Qazvin', 'Qom', 'Razavi Khorasan', 'Semnan', 'Sistan and Baluchestan', 'South Khorasan', 'Tehran', 'West Azerbaijan', 'Yazd', 'Zanjan'],
+  'China': ['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi', 'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hong Kong', 'Hubei', 'Hunan', 'Inner Mongolia', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Macau', 'Ningxia', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan', 'Tianjin', 'Tibet', 'Xinjiang', 'Yunnan', 'Zhejiang'],
+  'Iraq': ['Al Anbar', 'Al Muthanna', 'Al-Qādisiyyah', 'Babylon', 'Baghdad', 'Basra', 'Dhi Qar', 'Diyala', 'Dohuk', 'Erbil', 'Halabja', 'Karbala', 'Kirkuk', 'Maysan', 'Najaf', 'Nineveh', 'Saladin', 'Sulaymaniyah', 'Wasit'],
+  'Egypt': ['Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo', 'Dakahlia', 'Damietta', 'Faiyum', 'Gharbia', 'Giza', 'Ismailia', 'Kafr El Sheikh', 'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley', 'North Sinai', 'Port Said', 'Qalyubia', 'Qena', 'Red Sea', 'Sharqia', 'Sohag', 'South Sinai', 'Suez'],
+  'Cambodia': ['Banteay Meanchey', 'Battambang', 'Kampong Cham', 'Kampong Chhnang', 'Kampong Speu', 'Kampong Thom', 'Kampot', 'Kandal', 'Kep', 'Koh Kong', 'Kratie', 'Mondulkiri', 'Oddar Meanchey', 'Pailin', 'Phnom Penh', 'Preah Sihanouk', 'Preah Vihear', 'Prey Veng', 'Pursat', 'Ratanakiri', 'Siem Reap', 'Stung Treng', 'Svay Rieng', 'Takeo', 'Tboung Khmum'],
+  'Greece': ['Attica', 'Central Greece', 'Central Macedonia', 'Crete', 'Eastern Macedonia and Thrace', 'Epirus', 'Ionian Islands', 'North Aegean', 'Peloponnese', 'South Aegean', 'Thessaly', 'Western Greece', 'Western Macedonia'],
+  'Italy': ['Abruzzo', 'Aosta Valley', 'Apulia', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardy', 'Marche', 'Molise', 'Piedmont', 'Sardinia', 'Sicily', 'Trentino-South Tyrol', 'Tuscany', 'Umbria', 'Veneto'],
+  'Turkey': ['Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya', 'Ankara', 'Antalya', 'Ardahan', 'Artvin', 'Aydın', 'Balıkesir', 'Bartın', 'Batman', 'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur', 'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Düzce', 'Edirne', 'Elazığ', 'Erzincan', 'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır', 'Isparta', 'Istanbul', 'İzmir', 'Kahramanmaraş', 'Karabük', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri', 'Kilis', 'Kırıkkale', 'Kırklareli', 'Kırşehir', 'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Muğla', 'Muş', 'Nevşehir', 'Niğde', 'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Şanlıurfa', 'Siirt', 'Sinop', 'Şırnak', 'Sivas', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak'],
 }
 
 // ─── Watermark ────────────────────────────────────────────────────────────────
@@ -167,8 +167,7 @@ const applyWatermark = (file: File, contributorName: string): Promise<Blob> => {
     const objectUrl = URL.createObjectURL(file)
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
+      canvas.width = img.width; canvas.height = img.height
       const ctx = canvas.getContext('2d')
       if (!ctx) { reject(new Error('Canvas not supported')); return }
       ctx.drawImage(img, 0, 0)
@@ -179,12 +178,8 @@ const applyWatermark = (file: File, contributorName: string): Promise<Blob> => {
       const padding = 16
       const x = img.width - textWidth - padding
       const y = img.height - padding
-      ctx.shadowColor = 'rgba(0,0,0,0.75)'
-      ctx.shadowBlur = 6
-      ctx.shadowOffsetX = 1
-      ctx.shadowOffsetY = 1
-      ctx.globalAlpha = 0.38
-      ctx.fillStyle = '#ffffff'
+      ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1
+      ctx.globalAlpha = 0.38; ctx.fillStyle = '#ffffff'
       ctx.fillText(text, x, y)
       URL.revokeObjectURL(objectUrl)
       canvas.toBlob(
@@ -197,76 +192,65 @@ const applyWatermark = (file: File, contributorName: string): Promise<Blob> => {
   })
 }
 
+// ─── Citation type ────────────────────────────────────────────────────────────
+
+type Citation = { type: string; value: string; url: string }
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Submit() {
   const navigate = useNavigate()
   const { c, theme } = useTheme()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]         = useState<any>(null)
+  const [loading, setLoading]   = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [errors, setErrors] = useState<string[]>([])
-  const [photos, setPhotos] = useState<File[]>([])
+  const [submitted, setSubmitted]   = useState(false)
+  const [errors, setErrors]     = useState<string[]>([])
+  const [photos, setPhotos]     = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
-  const [photoErrors, setPhotoErrors] = useState<string[]>([])
+  const [photoErrors, setPhotoErrors]     = useState<string[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [showMap, setShowMap] = useState(false)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const markerRef = useRef<any>(null)
-  const [showCurrentMap, setShowCurrentMap] = useState(false)
+  const [lightboxIndex, setLightboxIndex]     = useState<number | null>(null)
+  const [showMap, setShowMap]   = useState(false)
+  const mapContainerRef  = useRef<HTMLDivElement>(null)
+  const mapInstanceRef   = useRef<any>(null)
+  const markerRef        = useRef<any>(null)
+  const [showCurrentMap, setShowCurrentMap]         = useState(false)
   const currentMapContainerRef = useRef<HTMLDivElement>(null)
-  const currentMapInstanceRef = useRef<any>(null)
-  const currentMarkerRef = useRef<any>(null)
-  const [showInSituTooltip, setShowInSituTooltip] = useState(false)
+  const currentMapInstanceRef  = useRef<any>(null)
+  const currentMarkerRef       = useRef<any>(null)
+  const [showInSituTooltip, setShowInSituTooltip]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const BLANK_FORM = {
     title: '',
-    type: '',
+    material_category: '',
+    material_type: '',
     short_description: '',
     original_location_known: true as boolean,
-    country: '',
-    state_province: '',
-    village_town_city: '',
-    latitude: '',
-    longitude: '',
+    country: '', state_province: '', village_town_city: '',
+    latitude: '', longitude: '',
     in_situ: false,
     current_location_known: false as boolean,
-    current_location_type: '',
-    current_location: '',
-    current_city: '',
-    current_country: '',
-    current_lat: '',
-    current_lng: '',
-    year: '',
-    year_is_approximate: false,
-    era: 'CE',
-    dynasty: '',
-    reign_ruler: '',
-    language: '',
-    script: '',
-    purpose: '',
+    current_location_type: '', current_location: '', current_city: '', current_country: '',
+    current_lat: '', current_lng: '',
+    year: '', year_is_approximate: false, era: 'CE',
+    dynasty: '', reign_ruler: '',
+    language: '', script: '',
+    purpose_category: '',
+    purpose: '',            // free text — mandatory if purpose_category = 'Other', optional otherwise
     condition: '',
-    actual_text: '',
-    transliteration: '',
-    translation_english: '',
-    importance: '',
-    detailed_information: '',
-    first_discovered_by: '',
-    reading_done_by: '',
-    credits: '',
+    actual_text: '', transliteration: '', translation_english: '',
+    importance: '', detailed_information: '',
+    first_discovered_by: '', reading_done_by: '',
     accession_number: '',
-    height_cm: '',
-    width_cm: '',
-    depth_cm: '',
+    height_cm: '', width_cm: '', depth_cm: '',
+    citations: [] as Citation[],
   }
 
   const [form, setForm] = useState(BLANK_FORM)
 
-  // ── Auth check ──────────────────────────────────────────────────────────────
+  // ── Auth check ───────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) navigate('/signin')
@@ -306,8 +290,7 @@ export default function Submit() {
       const initLng = form.longitude ? parseFloat(form.longitude) : 78.9629
       const map = L.map(mapContainerRef.current).setView([initLat, initLng], form.latitude ? 10 : 5)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 19,
+        attribution: '© OpenStreetMap contributors © CARTO', subdomains: 'abcd', maxZoom: 19,
       }).addTo(map)
       if (form.latitude && form.longitude) {
         const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
@@ -355,8 +338,7 @@ export default function Submit() {
       const initLng = form.current_lng ? parseFloat(form.current_lng) : 78.9629
       const map = L.map(currentMapContainerRef.current).setView([initLat, initLng], form.current_lat ? 10 : 3)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 19,
+        attribution: '© OpenStreetMap contributors © CARTO', subdomains: 'abcd', maxZoom: 19,
       }).addTo(map)
       if (form.current_lat && form.current_lng) {
         const m = L.marker([initLat, initLng], { draggable: true }).addTo(map)
@@ -397,10 +379,26 @@ export default function Submit() {
     }
   }, [])
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }))
   const handleCountryChange = (country: string) => setForm(prev => ({ ...prev, country, state_province: '' }))
   const stateOptions = STATES_BY_COUNTRY[form.country] || []
+
+  const selectedCategory = MATERIAL_CATEGORIES.find(c => c.code === form.material_category)
+  const typeOptions = selectedCategory?.types || []
+
+  // ── Citation helpers ─────────────────────────────────────────────────────────
+  const addCitation = () => setForm(prev => ({
+    ...prev, citations: [...prev.citations, { type: '', value: '', url: '' }]
+  }))
+  const removeCitation = (i: number) => setForm(prev => ({
+    ...prev, citations: prev.citations.filter((_, idx) => idx !== i)
+  }))
+  const updateCitation = (i: number, field: keyof Citation, val: string) => setForm(prev => {
+    const updated = [...prev.citations]
+    updated[i] = { ...updated[i], [field]: val }
+    return { ...prev, citations: updated }
+  })
 
   const yesNoBtn = (active: boolean, onClick: () => void, label: string) => (
     <button onClick={onClick} style={{
@@ -413,7 +411,7 @@ export default function Submit() {
     }}>{label}</button>
   )
 
-  // ── Photo handlers ──────────────────────────────────────────────────────────
+  // ── Photo handlers ───────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const errs: string[] = []; const valid: File[] = []
@@ -449,17 +447,21 @@ export default function Submit() {
     return urls
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const errs: string[] = []
-    if (!form.title.trim()) errs.push('Title is required.')
-    if (!form.type) errs.push('Type is required.')
+    if (!form.title.trim())            errs.push('Title is required.')
+    if (!form.material_category)       errs.push('Category is required.')
+    if (!form.material_type)           errs.push('Type is required.')
     if (form.original_location_known && !form.country) errs.push('Country is required when original location is known.')
+    if (form.purpose_category === 'Other' && !form.purpose.trim()) errs.push('Please describe the purpose when selecting Other.')
+    // Citation URL validation
+    const citationErrs = form.citations.filter(c => c.type === 'Website / URL' && !c.url.trim())
+    if (citationErrs.length > 0) errs.push('URL is required for Website / URL citation type.')
     setErrors(errs)
     if (errs.length) return
 
     setSubmitting(true)
-
     let photoUrls: string[] = []
     if (photos.length > 0) {
       setUploadingPhotos(true)
@@ -472,9 +474,18 @@ export default function Submit() {
     const hasCurrentLocation = currentSectionActive && form.current_location_known
     const isPrivateCollection = form.current_location_type === 'Private Collection'
 
+    const validCitations = form.citations
+      .filter(c => c.type && c.value.trim())
+      .map(c => ({ type: c.type, value: c.value.trim(), ...(c.url.trim() ? { url: c.url.trim() } : {}) }))
+
     const payload: any = {
-      title: form.title, type: form.type,
-      short_description: form.short_description, condition: form.condition || null,
+      title: form.title,
+      // New material fields
+      material_category: form.material_category,
+      material_type: form.material_type,
+      type: form.material_type,   // kept for DB not-null constraint; mirrors material_type
+      short_description: form.short_description,
+      condition: form.condition || null,
       original_location_known: form.original_location_known,
       country: form.original_location_known ? form.country : null,
       state_province: form.original_location_known ? form.state_province || null : null,
@@ -491,18 +502,28 @@ export default function Submit() {
       current_lng: hasCurrentLocation && !isPrivateCollection && form.current_lng ? parseFloat(form.current_lng) : null,
       year: form.year ? `${form.year} ${form.era}` : null,
       year_is_approximate: form.year_is_approximate,
-      dynasty: form.dynasty || null, reign_ruler: form.reign_ruler || null,
-      language: form.language, script: form.script, purpose: form.purpose || null,
-      actual_text: form.actual_text || null, transliteration: form.transliteration || null,
+      dynasty: form.dynasty || null,
+      reign_ruler: form.reign_ruler || null,
+      language: form.language,
+      script: form.script,
+      // New purpose fields
+      purpose_category: form.purpose_category || null,
+      purpose: form.purpose || null,
+      actual_text: form.actual_text || null,
+      transliteration: form.transliteration || null,
       translation_english: form.translation_english || null,
-      importance: form.importance || null, detailed_information: form.detailed_information || null,
+      importance: form.importance || null,
+      detailed_information: form.detailed_information || null,
       first_discovered_by: form.first_discovered_by || null,
       reading_done_by: form.reading_done_by || null,
-      credits: form.credits || null, accession_number: form.accession_number || null,
+      accession_number: form.accession_number || null,
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
-      width_cm: form.width_cm ? parseFloat(form.width_cm) : null,
-      depth_cm: form.depth_cm ? parseFloat(form.depth_cm) : null,
-      status: 'pending', submitted_by: user.id, photo_urls: photoUrls,
+      width_cm:  form.width_cm  ? parseFloat(form.width_cm)  : null,
+      depth_cm:  form.depth_cm  ? parseFloat(form.depth_cm)  : null,
+      citation_credits: validCitations,
+      status: 'pending',
+      submitted_by: user.id,
+      photo_urls: photoUrls,
     }
 
     const { error } = await supabase.from('inscriptions').insert([payload])
@@ -519,20 +540,17 @@ export default function Submit() {
     }
   }
 
-  // ── Styles ──────────────────────────────────────────────────────────────────
+  // ── Styles ───────────────────────────────────────────────────────────────────
   const inputStyle = {
     width: '100%', background: c.bg, border: `0.5px solid ${c.border}`,
     borderRadius: '4px', padding: '10px 14px', color: c.text,
     fontSize: '13px', fontFamily: 'Georgia, serif', outline: 'none',
     boxSizing: 'border-box' as const,
   }
-  const selectStyle = { ...inputStyle, cursor: 'pointer' }
+  const selectStyle  = { ...inputStyle, cursor: 'pointer' }
   const textareaStyle = { ...inputStyle, resize: 'vertical' as const, minHeight: '90px', lineHeight: 1.6 }
-  const labelStyle = {
-    fontSize: '9px', letterSpacing: '.15em', color: c.textDim,
-    marginBottom: '6px', display: 'block' as const, fontFamily: 'Arial, sans-serif',
-  }
-  const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }
+  const labelStyle   = { fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '6px', display: 'block' as const, fontFamily: 'Arial, sans-serif' }
+  const grid2        = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }
 
   const sectionLabel = (text: string, required = false) => (
     <div style={{ borderBottom: `0.5px solid ${c.borderLight}`, paddingBottom: '10px', marginBottom: '20px', marginTop: '36px' }}>
@@ -556,14 +574,14 @@ export default function Submit() {
     </button>
   )
 
-  // ── Loading ─────────────────────────────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>LOADING...</p>
     </div>
   )
 
-  // ── Success ─────────────────────────────────────────────────────────────────
+  // ── Success ──────────────────────────────────────────────────────────────────
   if (submitted) return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
@@ -576,9 +594,7 @@ export default function Submit() {
           Your inscription has been submitted for review. We have sent a confirmation to{' '}
           <strong style={{ color: c.text }}>{user?.email}</strong>. Our team will verify the details and you will hear from us once a decision has been made.
         </p>
-        <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '24px', fontStyle: 'italic' }}>
-          Returning to home in a moment…
-        </p>
+        <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '24px', fontStyle: 'italic' }}>Returning to home in a moment…</p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/')}
             style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '10px 28px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontWeight: 600 }}>
@@ -593,7 +609,6 @@ export default function Submit() {
     </div>
   )
 
-  // ── Main form ───────────────────────────────────────────────────────────────
   const showCurrentLocationSection = (form.original_location_known && !form.in_situ) || !form.original_location_known
   const isPrivateCollection = form.current_location_type === 'Private Collection'
 
@@ -631,7 +646,7 @@ export default function Submit() {
         <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: c.gold, marginBottom: '8px', letterSpacing: '.05em' }}>Submit an Inscription</h1>
         <div style={{ width: '40px', height: '0.5px', background: c.gold, margin: '20px 0', opacity: .5 }} />
         <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8, marginBottom: '8px' }}>
-          Fill in as much detail as you can. Only Title, Type and Country are required — the more you add, the more valuable the record.
+          Fill in as much detail as you can. Title, Category, Type and Country are required — the more you add, the more valuable the record.
         </p>
         <p style={{ fontSize: '12px', color: c.textDim, marginBottom: '8px' }}>
           Submitting as: <span style={{ color: c.gold }}>{user?.email}</span>
@@ -645,18 +660,39 @@ export default function Submit() {
 
         {/* ══ BASIC INFORMATION ══ */}
         {sectionLabel('BASIC INFORMATION', true)}
+
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>TITLE *</label>
           <input style={inputStyle} placeholder="e.g. Maski Rock Edict of Ashoka" value={form.title} onChange={e => set('title', e.target.value)} />
         </div>
+
+        {/* Cascading Category + Type */}
         <div style={{ ...grid2, marginBottom: '16px' }}>
           <div>
-            <label style={labelStyle}>TYPE *</label>
-            <select style={selectStyle} value={form.type} onChange={e => set('type', e.target.value)}>
-              <option value="">Select type...</option>
-              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            <label style={labelStyle}>CATEGORY *</label>
+            <select style={selectStyle} value={form.material_category} onChange={e => setForm(prev => ({ ...prev, material_category: e.target.value, material_type: '' }))}>
+              <option value="">Select category...</option>
+              {MATERIAL_CATEGORIES.map(cat => (
+                <option key={cat.code} value={cat.code}>{cat.label}</option>
+              ))}
             </select>
           </div>
+          <div>
+            <label style={labelStyle}>TYPE *</label>
+            <select
+              style={{ ...selectStyle, opacity: form.material_category ? 1 : 0.5 }}
+              value={form.material_type}
+              onChange={e => set('material_type', e.target.value)}
+              disabled={!form.material_category}
+            >
+              <option value="">{form.material_category ? 'Select type...' : 'Select a category first'}</option>
+              {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ ...grid2, marginBottom: '16px' }}>
+          {/* Condition */}
           <div>
             <label style={labelStyle}>CONDITION</label>
             <select style={selectStyle} value={form.condition} onChange={e => set('condition', e.target.value)}>
@@ -664,7 +700,24 @@ export default function Submit() {
               {CONDITIONS.map(cd => <option key={cd} value={cd}>{cd}</option>)}
             </select>
           </div>
+          {/* Purpose */}
+          <div>
+            <label style={labelStyle}>PURPOSE</label>
+            <select style={selectStyle} value={form.purpose_category} onChange={e => set('purpose_category', e.target.value)}>
+              <option value="">Select purpose...</option>
+              {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
         </div>
+
+        {/* Purpose Other free text */}
+        {form.purpose_category === 'Other' && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={labelStyle}>DESCRIBE PURPOSE *</label>
+            <input style={inputStyle} placeholder="Describe the purpose of this inscription" value={form.purpose} onChange={e => set('purpose', e.target.value)} />
+          </div>
+        )}
+
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>SHORT DESCRIPTION</label>
           <textarea style={textareaStyle} placeholder="A brief description of the inscription — what it is and why it matters." value={form.short_description} onChange={e => set('short_description', e.target.value)} />
@@ -672,6 +725,8 @@ export default function Submit() {
 
         {/* ══ LOCATION ══ */}
         {sectionLabel('LOCATION')}
+
+        {/* Map legend */}
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px',
           background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
@@ -680,8 +735,8 @@ export default function Submit() {
         }}>
           <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, fontFamily: 'Arial, sans-serif', gridColumn: '1/-1', marginBottom: '8px' }}>HOW YOUR ENTRY WILL APPEAR ON THE MAP</p>
           {[
-            { color: '#d4a843', label: 'Gold pin', desc: 'Original location · in situ' },
-            { color: '#c87533', label: 'Amber pin', desc: 'Original location · moved' },
+            { color: '#d4a843', label: 'Gold pin',   desc: 'Original location · in situ' },
+            { color: '#c87533', label: 'Amber pin',  desc: 'Original location · moved' },
             { color: '#a8a8b0', label: 'Silver pin', desc: 'Current location · original unknown' },
             { color: c.borderLight, label: 'No pin', desc: 'Both locations unknown' },
           ].map(p => (
@@ -885,10 +940,6 @@ export default function Submit() {
             <input style={inputStyle} placeholder="e.g. Brahmi" value={form.script} onChange={e => set('script', e.target.value)} />
           </div>
         </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={labelStyle}>PURPOSE</label>
-          <input style={inputStyle} placeholder="e.g. Royal proclamation, Temple dedication, Memorial" value={form.purpose} onChange={e => set('purpose', e.target.value)} />
-        </div>
 
         {/* ══ THE INSCRIPTION TEXT ══ */}
         {sectionLabel('THE INSCRIPTION TEXT')}
@@ -928,6 +979,10 @@ export default function Submit() {
             <label style={labelStyle}>DEPTH (cm)</label>
             <input style={inputStyle} type="number" step="any" placeholder="e.g. 30" value={form.depth_cm} onChange={e => set('depth_cm', e.target.value)} />
           </div>
+        </div>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={labelStyle}>ACCESSION NUMBER</label>
+          <input style={inputStyle} placeholder="Museum or ASI accession number if known" value={form.accession_number} onChange={e => set('accession_number', e.target.value)} />
         </div>
 
         {/* ══ PHOTOGRAPHS ══ */}
@@ -978,8 +1033,14 @@ export default function Submit() {
           </div>
         )}
 
-        {/* ══ CREDITS & REFERENCES ══ */}
-        {sectionLabel('CREDITS & REFERENCES')}
+        {/* ══ CITATIONS & CREDITS ══ */}
+        {sectionLabel('CITATIONS & CREDITS')}
+        <p style={{ fontSize: '12px', color: c.textDim, lineHeight: 1.7, marginBottom: '20px' }}>
+          Add as many citations as you like — books, journal references, ASI reports, database IDs, museum records, website links.
+          The more sources you provide, the stronger and more credible the record.
+        </p>
+
+        {/* First Discovered + Reading Done By */}
         <div style={{ ...grid2, marginBottom: '16px' }}>
           <div>
             <label style={labelStyle}>FIRST DISCOVERED BY</label>
@@ -990,16 +1051,65 @@ export default function Submit() {
             <input style={inputStyle} placeholder="Scholar who read or deciphered the text" value={form.reading_done_by} onChange={e => set('reading_done_by', e.target.value)} />
           </div>
         </div>
-        <div style={{ ...grid2, marginBottom: '16px' }}>
-          <div>
-            <label style={labelStyle}>CREDITS / SOURCES</label>
-            <input style={inputStyle} placeholder="Books, papers, museums, institutions" value={form.credits} onChange={e => set('credits', e.target.value)} />
+
+        {/* Dynamic citations */}
+        {form.citations.map((cite, i) => (
+          <div key={i} style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '16px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, fontFamily: 'Arial, sans-serif' }}>CITATION {i + 1}</p>
+              <button onClick={() => removeCitation(i)}
+                style={{ background: 'transparent', border: 'none', color: c.textDim, cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '0 4px' }}
+                onMouseEnter={e => (e.currentTarget.style.color = c.orange)}
+                onMouseLeave={e => (e.currentTarget.style.color = c.textDim)}>×</button>
+            </div>
+            <div style={{ ...grid2, marginBottom: '10px' }}>
+              <div>
+                <label style={labelStyle}>TYPE</label>
+                <select style={selectStyle} value={cite.type} onChange={e => updateCitation(i, 'type', e.target.value)}>
+                  <option value="">Select type...</option>
+                  {CITATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>
+                  URL {cite.type === 'Website / URL' ? '*' : '(OPTIONAL)'}
+                </label>
+                <input
+                  style={inputStyle}
+                  placeholder={
+                    cite.type === 'Database Reference' ? 'https://siddham.network/inscription/...' :
+                    cite.type === 'Publication' ? 'https://doi.org/...' :
+                    'https://...'
+                  }
+                  value={cite.url}
+                  onChange={e => updateCitation(i, 'url', e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>CITATION DETAIL</label>
+              <input
+                style={inputStyle}
+                placeholder={
+                  cite.type === 'Publication' ? 'e.g. Epigraphia Indica, Vol. VIII, p. 42' :
+                  cite.type === 'ASI / Government Record' ? 'e.g. Annual Report on Indian Epigraphy 1952-53, No. A47' :
+                  cite.type === 'Museum Record' ? 'e.g. National Museum Delhi — Accession No. 47.12' :
+                  cite.type === 'Database Reference' ? 'e.g. Siddham ID: IN070001' :
+                  'Enter citation details'
+                }
+                value={cite.value}
+                onChange={e => updateCitation(i, 'value', e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>ACCESSION NUMBER</label>
-            <input style={inputStyle} placeholder="Museum or ASI accession number if known" value={form.accession_number} onChange={e => set('accession_number', e.target.value)} />
-          </div>
-        </div>
+        ))}
+
+        <button onClick={addCitation}
+          style={{ background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '9px 20px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}>
+          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> ADD CITATION
+        </button>
 
         {/* ══ Submit ══ */}
         <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: `0.5px solid ${c.borderLight}` }}>
@@ -1014,6 +1124,7 @@ export default function Submit() {
 
       </div>
 
+      {/* ── Footer ── */}
       <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', color: c.gold, fontFamily: 'Georgia, serif' }}>शिलालेख</span>

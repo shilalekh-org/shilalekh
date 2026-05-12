@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         After careful review, we are unable to include this entry at this time.
       </p>
       ${extra ? `
-      <div style="background:#f0e8d8;border-left:3px solid #8a6c28;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;">
+      <div style="background:#ede8da;border-left:3px solid #8a6c28;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;">
         <p style="font-size:12px;color:#6a4a1a;font-weight:500;margin:0 0 6px;letter-spacing:.05em;">REASON</p>
         <p style="font-size:14px;color:#5a4a2a;margin:0;line-height:1.6;">${extra}</p>
       </div>` : ''}
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
         have a question before we can proceed.
       </p>
       ${extra ? `
-      <div style="background:#f0e8d8;border-left:3px solid #8a6c28;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;">
+      <div style="background:#ede8da;border-left:3px solid #8a6c28;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 20px;">
         <p style="font-size:12px;color:#6a4a1a;font-weight:500;margin:0 0 6px;letter-spacing:.05em;">MESSAGE FROM THE EDITORIAL TEAM</p>
         <p style="font-size:14px;color:#5a4a2a;margin:0;line-height:1.6;">${extra}</p>
       </div>` : ''}
@@ -86,10 +86,10 @@ export default async function handler(req, res) {
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#0d0b07;font-family:Georgia,serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0d0b07;padding:40px 16px;">
+<body style="margin:0;padding:0;background:#f5f0e4;font-family:Georgia,serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f0e4;padding:40px 16px;">
   <tr><td align="center">
-  <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;border-radius:12px;overflow:hidden;">
+  <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(61,42,10,0.10);">
     <tr>
       <td align="center" style="background:#1a1008;padding:36px 40px 24px;">
         <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 14px;">
@@ -125,9 +125,9 @@ export default async function handler(req, res) {
       </td>
     </tr>
     <tr>
-      <td align="center" style="background:#120d04;padding:18px 40px;">
+      <td align="center" style="background:#2a1f0a;padding:18px 40px;">
         <p style="font-size:11px;color:#6a5838;font-family:sans-serif;line-height:1.6;margin:0;">
-          © 2025 Shilalekh &nbsp;·&nbsp; shilalekh.org
+          © 2026 Shilalekh &nbsp;·&nbsp; shilalekh.org
         </p>
       </td>
     </tr>

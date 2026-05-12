@@ -8,24 +8,25 @@ export default function Inscription() {
   const navigate = useNavigate()
   const { id } = useParams()
   const { c } = useTheme()
-  const [inscription, setInscription] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [inscription, setInscription]   = useState<any>(null)
+  const [loading, setLoading]           = useState(true)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [copied, setCopied]             = useState(false)
 
+  // ── Fetch ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return
-    supabase
-      .from('inscriptions')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (!error && data) setInscription(data)
-        setLoading(false)
-      })
+    const isShilaId = id.toUpperCase().startsWith('SHILA-')
+    const q = isShilaId
+      ? supabase.from('inscriptions').select('*').eq('shila_id', id.toUpperCase()).single()
+      : supabase.from('inscriptions').select('*').eq('id', id).single()
+    q.then(({ data, error }) => {
+      if (!error && data) setInscription(data)
+      setLoading(false)
+    })
   }, [id])
 
-  // Lightbox keyboard nav
+  // ── Lightbox keyboard nav ────────────────────────────────────────────────────
   useEffect(() => {
     const photos = inscription?.photo_urls || []
     const handleKey = (e: KeyboardEvent) => {
@@ -39,26 +40,58 @@ export default function Inscription() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [lightboxIndex, inscription])
 
+  // ── Share ────────────────────────────────────────────────────────────────────
+  const handleShare = () => {
+    const shareId = inscription?.shila_id || inscription?.id
+    const url = `https://shilalekh.org/inscription/${shareId}`
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2500)
+      })
+    } else {
+      const el = document.createElement('textarea')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const shortId = (uuid: string) => `@${uuid.replace(/-/g, '').slice(0, 8)}`
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>LOADING...</p>
     </div>
   )
 
+  // ── Not found ────────────────────────────────────────────────────────────────
   if (!inscription) return (
     <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>INSCRIPTION NOT FOUND</p>
-      <button onClick={() => navigate('/inscriptions')} style={{ fontSize: '11px', color: c.gold, background: 'transparent', border: `0.5px solid ${c.gold}`, padding: '8px 20px', borderRadius: '4px', cursor: 'pointer', letterSpacing: '.1em' }}>BACK TO INSCRIPTIONS</button>
+      <button onClick={() => navigate('/inscriptions')}
+        style={{ fontSize: '11px', color: c.gold, background: 'transparent', border: `0.5px solid ${c.gold}`, padding: '8px 20px', borderRadius: '4px', cursor: 'pointer', letterSpacing: '.1em' }}>
+        BACK TO INSCRIPTIONS
+      </button>
     </div>
   )
 
-  const photos: string[] = inscription.photo_urls || []
+  const photos: string[]    = inscription.photo_urls || []
+  const citations: any[]    = inscription.citation_credits || []
+  const displayType         = inscription.material_type || inscription.type
+  const displayPurpose      = inscription.purpose_category || inscription.purpose
 
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
 
-      {/* ── Lightbox ── */}
+      {/* ── Lightbox ──────────────────────────────────────────────────────────── */}
       {lightboxIndex !== null && (
         <div onClick={() => setLightboxIndex(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.93)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -82,37 +115,93 @@ export default function Inscription() {
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 32px 60px' }}>
 
-        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '8px', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
+        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '16px', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
           onClick={() => navigate('/inscriptions')}>← BACK TO INSCRIPTIONS</p>
 
-        {/* Tags */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-          {inscription.type && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.type.toUpperCase()}</span>}
-          {inscription.state_province && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.state_province.toUpperCase()}</span>}
-          {inscription.year && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.year}</span>}
-          {inscription.script && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.script.toUpperCase()}</span>}
+        {/* ── Tags ──────────────────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {displayType && (
+            <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em' }}>
+              {displayType.toUpperCase()}
+            </span>
+          )}
+          {inscription.state_province && (
+            <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>
+              {inscription.state_province.toUpperCase()}
+            </span>
+          )}
+          {inscription.year && (
+            <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>
+              {inscription.year}
+            </span>
+          )}
+          {inscription.script && (
+            <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>
+              {inscription.script.toUpperCase()}
+            </span>
+          )}
         </div>
 
-        {/* Title */}
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: c.gold, marginBottom: '8px', letterSpacing: '.05em' }}>{inscription.title}</h1>
+        {/* ── Title ─────────────────────────────────────────────────────────────── */}
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: c.gold, marginBottom: '16px', letterSpacing: '.05em' }}>
+          {inscription.title}
+        </h1>
+
+        {/* ── ShilaID + Share ───────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          {inscription.shila_id && (
+            <span style={{
+              fontFamily: '"Courier New", Courier, monospace',
+              fontSize: '11px',
+              color: c.textDim,
+              background: c.bgCard,
+              border: `0.5px solid ${c.border}`,
+              padding: '5px 12px',
+              borderRadius: '4px',
+              letterSpacing: '.1em',
+              userSelect: 'all' as const,
+            }}>
+              {inscription.shila_id}
+            </span>
+          )}
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: copied ? 'rgba(212,168,67,0.1)' : 'transparent',
+              border: `0.5px solid ${copied ? c.gold : c.border}`,
+              color: copied ? c.gold : c.textDim,
+              padding: '5px 14px', borderRadius: '4px',
+              fontSize: '10px', letterSpacing: '.1em',
+              cursor: 'pointer', fontFamily: 'Arial, sans-serif',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold } }}
+            onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim } }}
+          >
+            <span style={{ fontSize: '12px' }}>{copied ? '✓' : '⎘'}</span>
+            {copied ? 'LINK COPIED' : 'SHARE'}
+          </button>
+        </div>
+
+        {/* ── Location ──────────────────────────────────────────────────────────── */}
         <p style={{ fontSize: '13px', color: c.textDim, marginBottom: '32px', letterSpacing: '.05em' }}>
           {inscription.current_location}
-          {inscription.latitude && inscription.longitude && ` · ${inscription.latitude}° N, ${inscription.longitude}° E`}
+          {inscription.latitude && inscription.longitude &&
+            ` · ${inscription.latitude}° N, ${inscription.longitude}° E`}
         </p>
 
         <div style={{ width: '40px', height: '0.5px', background: c.gold, marginBottom: '32px', opacity: .5 }} />
 
-        {/* ── PHOTOGRAPHS ── */}
+        {/* ── PHOTOGRAPHS ───────────────────────────────────────────────────────── */}
         {photos.length > 0 && (
           <div style={{ marginBottom: '32px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '14px', fontFamily: 'Arial, sans-serif' }}>PHOTOGRAPHS</p>
-            {/* Hero image */}
             <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', cursor: 'zoom-in', border: `0.5px solid ${c.border}` }}
               onClick={() => setLightboxIndex(0)}>
               <img src={photos[0]} alt={inscription.title}
                 style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }} />
             </div>
-            {/* Thumbnail strip for additional photos */}
             {photos.length > 1 && (
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(photos.length - 1, 4)}, 1fr)`, gap: '8px' }}>
                 {photos.slice(1).map((url, i) => (
@@ -130,7 +219,7 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Short description */}
+        {/* ── SHORT DESCRIPTION ─────────────────────────────────────────────────── */}
         {inscription.short_description && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>SHORT DESCRIPTION</p>
@@ -138,19 +227,23 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Key fields */}
+        {/* ── KEY FIELDS ────────────────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
           {[
-            { label: 'Type', value: inscription.type },
-            { label: 'Script', value: inscription.script },
+            { label: 'Type',     value: displayType },
+            { label: 'Script',   value: inscription.script },
             { label: 'Language', value: inscription.language },
-            { label: 'Year', value: inscription.year },
-            { label: 'Era', value: inscription.era },
-            { label: 'Dynasty', value: inscription.dynasty },
-            { label: 'Ruler', value: inscription.reign_ruler },
-            { label: 'Purpose', value: inscription.purpose },
-            { label: 'Condition', value: inscription.condition },
-            { label: 'Country', value: inscription.current_country },
+            { label: 'Year',     value: inscription.year },
+            { label: 'Dynasty',  value: inscription.dynasty },
+            { label: 'Ruler',    value: inscription.reign_ruler },
+            { label: 'Purpose',  value: displayPurpose },
+            { label: 'Condition',value: inscription.condition },
+            { label: 'Country',  value: inscription.country || inscription.current_country },
+            { label: 'In Situ',  value: inscription.in_situ === true ? 'Yes' : inscription.in_situ === false ? 'No' : null },
+            { label: 'Height',   value: inscription.height_cm ? `${inscription.height_cm} cm` : null },
+            { label: 'Width',    value: inscription.width_cm  ? `${inscription.width_cm} cm`  : null },
+            { label: 'Depth',    value: inscription.depth_cm  ? `${inscription.depth_cm} cm`  : null },
+            { label: 'Accession No.', value: inscription.accession_number },
           ].filter(f => f.value).map((f, i) => (
             <div key={i} style={{ background: c.bgCard, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '12px 14px' }}>
               <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>{f.label.toUpperCase()}</p>
@@ -159,7 +252,7 @@ export default function Inscription() {
           ))}
         </div>
 
-        {/* Actual text */}
+        {/* ── ACTUAL TEXT ───────────────────────────────────────────────────────── */}
         {inscription.actual_text && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>ACTUAL TEXT</p>
@@ -167,7 +260,7 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Transliteration */}
+        {/* ── TRANSLITERATION ───────────────────────────────────────────────────── */}
         {inscription.transliteration && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLITERATION</p>
@@ -175,7 +268,7 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Translation */}
+        {/* ── TRANSLATION ───────────────────────────────────────────────────────── */}
         {inscription.translation_english && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLATION</p>
@@ -183,7 +276,7 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Importance */}
+        {/* ── IMPORTANCE ────────────────────────────────────────────────────────── */}
         {inscription.importance && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>IMPORTANCE</p>
@@ -191,17 +284,83 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* Detailed information */}
+        {/* ── DETAILED INFORMATION ──────────────────────────────────────────────── */}
         {inscription.detailed_information && (
-          <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
+          <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>DETAILED INFORMATION</p>
             <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8 }}>{inscription.detailed_information}</p>
           </div>
         )}
 
+        {/* ── CITATIONS & CREDITS ───────────────────────────────────────────────── */}
+        {citations.length > 0 && (
+          <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
+            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '16px', fontFamily: 'Arial, sans-serif' }}>CITATIONS & CREDITS</p>
+            {citations.map((cite: any, i: number) => (
+              <div key={i} style={{
+                paddingBottom: i < citations.length - 1 ? '14px' : 0,
+                marginBottom: i < citations.length - 1 ? '14px' : 0,
+                borderBottom: i < citations.length - 1 ? `0.5px solid ${c.borderLight}` : 'none',
+              }}>
+                <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '5px', fontFamily: 'Arial, sans-serif' }}>
+                  {cite.type?.toUpperCase()}
+                </p>
+                {cite.url ? (
+                  <a href={cite.url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: '13px', color: c.gold, textDecoration: 'none', lineHeight: 1.6 }}
+                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+                    {cite.value}
+                  </a>
+                ) : (
+                  <p style={{ fontSize: '13px', color: c.text, lineHeight: 1.6 }}>{cite.value}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── RECORD ATTRIBUTION ────────────────────────────────────────────────── */}
+        {/*
+          Tonight: shows primary contributor only.
+          Session D: "Further contributions by" added once edit_requests table is live —
+          query approved edit_requests for this inscription_id and show unique submitter UUIDs.
+        */}
+        <div style={{ borderTop: `0.5px solid ${c.borderLight}`, paddingTop: '24px', marginTop: '8px' }}>
+          <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>
+            RECORD ATTRIBUTION
+          </p>
+          {inscription.submitted_by ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: c.textDim, fontFamily: 'Arial, sans-serif' }}>Contributed by</span>
+              <span
+                onClick={() => navigate(`/contributor/${inscription.submitted_by}`)}
+                style={{
+                  fontSize: '12px', color: c.gold,
+                  fontFamily: '"Courier New", Courier, monospace',
+                  cursor: 'pointer', letterSpacing: '.05em',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                {shortId(inscription.submitted_by)}
+              </span>
+              {inscription.approved_at && (
+                <span style={{ fontSize: '11px', color: c.textDim, fontFamily: 'Arial, sans-serif' }}>
+                  · Verified {new Date(inscription.approved_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p style={{ fontSize: '11px', color: c.textDim, fontFamily: 'Arial, sans-serif', fontStyle: 'italic' }}>
+              Sourced from ASI records
+            </p>
+          )}
+        </div>
+
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ────────────────────────────────────────────────────────────────── */}
       <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', color: c.gold, fontFamily: 'Georgia, serif' }}>शिलालेख</span>

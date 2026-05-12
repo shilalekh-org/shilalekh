@@ -17,7 +17,7 @@ export default function Inscriptions() {
   useEffect(() => {
     supabase
       .from('inscriptions')
-      .select('id, title, type, state_province, dynasty, year, script, language, status')
+      .select('id, shila_id, title, type, material_type, state_province, dynasty, year, script, language, status')
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
@@ -33,6 +33,11 @@ export default function Inscriptions() {
     i.script?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const goToInscription = (inscription: any) => {
+    const target = inscription.shila_id || inscription.id
+    navigate(`/inscription/${target}`)
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
@@ -47,11 +52,18 @@ export default function Inscriptions() {
           placeholder="Search by title, state, dynasty, script..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '12px 16px', color: c.text, fontSize: '13px', marginBottom: '32px', outline: 'none', fontFamily: 'Georgia, serif', letterSpacing: '.03em' }}
+          style={{
+            width: '100%', background: c.bgCard, border: `0.5px solid ${c.border}`,
+            borderRadius: '4px', padding: '12px 16px', color: c.text, fontSize: '13px',
+            marginBottom: '32px', outline: 'none', fontFamily: 'Georgia, serif', letterSpacing: '.03em',
+            boxSizing: 'border-box' as const,
+          }}
         />
 
         {loading && (
-          <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em', textAlign: 'center', padding: '60px 0' }}>LOADING INSCRIPTIONS...</p>
+          <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em', textAlign: 'center', padding: '60px 0' }}>
+            LOADING INSCRIPTIONS...
+          </p>
         )}
 
         {!loading && filtered.length === 0 && (
@@ -61,29 +73,62 @@ export default function Inscriptions() {
           </div>
         )}
 
-        {!loading && filtered.map((inscription) => (
+        {!loading && filtered.map(inscription => (
           <div
             key={inscription.id}
-            onClick={() => navigate(`/inscription/${inscription.id}`)}
-            style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '20px 24px', marginBottom: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+            onClick={() => goToInscription(inscription)}
+            style={{
+              background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px',
+              padding: '20px 24px', marginBottom: '10px', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              transition: 'border-color 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
           >
-            <div>
-              <p style={{ fontSize: '15px', fontWeight: 400, color: c.text, marginBottom: '6px' }}>{inscription.title}</p>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {inscription.state_province && <span style={{ fontSize: '10px', color: c.textDim, letterSpacing: '.05em' }}>{inscription.state_province}</span>}
-                {inscription.dynasty && <span style={{ fontSize: '10px', color: c.textDim }}>· {inscription.dynasty}</span>}
-                {inscription.script && <span style={{ fontSize: '10px', color: c.textDim }}>· {inscription.script}</span>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '15px', fontWeight: 400, color: c.text, marginBottom: '6px' }}>
+                {inscription.title}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {inscription.state_province && (
+                  <span style={{ fontSize: '10px', color: c.textDim, letterSpacing: '.05em' }}>
+                    {inscription.state_province}
+                  </span>
+                )}
+                {inscription.dynasty && (
+                  <span style={{ fontSize: '10px', color: c.textDim }}>· {inscription.dynasty}</span>
+                )}
+                {inscription.script && (
+                  <span style={{ fontSize: '10px', color: c.textDim }}>· {inscription.script}</span>
+                )}
+                {inscription.shila_id && (
+                  <span style={{
+                    fontSize: '9px', color: c.textFaint,
+                    fontFamily: '"Courier New", Courier, monospace',
+                    letterSpacing: '.05em', marginLeft: '4px',
+                  }}>
+                    {inscription.shila_id}
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '20px' }}>
-              {inscription.year && <p style={{ fontSize: '12px', color: c.gold, marginBottom: '4px' }}>{inscription.year}</p>}
-              {inscription.type && <p style={{ fontSize: '10px', color: c.textDim, letterSpacing: '.05em' }}>{inscription.type.toUpperCase()}</p>}
+              {inscription.year && (
+                <p style={{ fontSize: '12px', color: c.gold, marginBottom: '4px' }}>{inscription.year}</p>
+              )}
+              {(inscription.material_type || inscription.type) && (
+                <p style={{ fontSize: '10px', color: c.textDim, letterSpacing: '.05em' }}>
+                  {(inscription.material_type || inscription.type).toUpperCase()}
+                </p>
+              )}
             </div>
           </div>
         ))}
 
       </div>
 
+      {/* ── Footer ── */}
       <div style={{ borderTop: `0.5px solid ${c.borderLight}`, padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', color: c.gold, fontFamily: 'Georgia, serif' }}>शिलालेख</span>

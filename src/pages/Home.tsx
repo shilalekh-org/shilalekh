@@ -6,103 +6,124 @@ import { supabase } from '../supabase'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
-const defaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconSize: [20, 32],
-  iconAnchor: [10, 32],
-  popupAnchor: [0, -32],
+// ─── Pin icons ────────────────────────────────────────────────────────────────
+
+const createPinIcon = (colour: string) => L.divIcon({
+  html: `<svg width="20" height="28" viewBox="0 0 20 28" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 0C4.477 0 0 4.477 0 10c0 7 10 18 10 18s10-11 10-18C20 4.477 15.523 0 10 0z" fill="${colour}"/>
+    <circle cx="10" cy="10" r="4" fill="white" fill-opacity="0.85"/>
+  </svg>`,
+  className: '',
+  iconSize: [20, 28],
+  iconAnchor: [10, 28],
+  popupAnchor: [0, -30],
 })
 
-const PILLS = ['All', 'Rock Edict', 'Temple', 'Cave', 'Copper Plate', 'Bilingual', 'Victory']
+const GOLD_PIN   = createPinIcon('#d4a843')
+const AMBER_PIN  = createPinIcon('#c87533')
+const SILVER_PIN = createPinIcon('#a8a8b0')
+
+const getPinIcon = (ins: any) => {
+  if (ins.in_situ === true) return GOLD_PIN
+  if (ins.original_location_known) return AMBER_PIN
+  return SILVER_PIN
+}
+
+const getPinCoords = (ins: any): [number, number] | null => {
+  if (ins.original_location_known && ins.latitude && ins.longitude)
+    return [ins.latitude, ins.longitude]
+  if (ins.current_lat && ins.current_lng)
+    return [ins.current_lat, ins.current_lng]
+  return null
+}
+
+// ─── Filter pills ─────────────────────────────────────────────────────────────
+
+const PILLS = ['All', 'Stone & Rock', 'Metal', 'Clay & Ceramic', 'Organic', 'Other']
+
+const PILL_TO_CATEGORY: Record<string, string> = {
+  'Stone & Rock':   'ST',
+  'Metal':          'ME',
+  'Clay & Ceramic': 'CL',
+  'Organic':        'OR',
+  'Other':          'OT',
+}
+
+// ─── Map layers ───────────────────────────────────────────────────────────────
 
 type LayerType = 'default' | 'street' | 'satellite'
 
 const LAYERS: { id: LayerType; label: string; url: string; attribution: string }[] = [
   {
-    id: 'default',
-    label: 'Default',
-    url: '',
+    id: 'default', label: 'Default', url: '',
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
   },
   {
-    id: 'street',
-    label: 'Street',
+    id: 'street', label: 'Street',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   {
-    id: 'satellite',
-    label: 'Satellite',
+    id: 'satellite', label: 'Satellite',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '© <a href="https://www.esri.com">Esri</a>',
   },
 ]
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Home() {
   const navigate = useNavigate()
   const { c, theme } = useTheme()
-  const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [inscriptions, setInscriptions] = useState<any[]>([])
+  const [search, setSearch]               = useState('')
+  const [activeFilter, setActiveFilter]   = useState('All')
+  const [inscriptions, setInscriptions]   = useState<any[]>([])
   const [mapInscriptions, setMapInscriptions] = useState<any[]>([])
-  const [stats, setStats] = useState({ total: 0, countries: 0, scripts: 0 })
-  const [loading, setLoading] = useState(true)
-  const [activeLayer, setActiveLayer] = useState<LayerType>('default')
+  const [stats, setStats]                 = useState({ total: 0, countries: 0, scripts: 0 })
+  const [loading, setLoading]             = useState(true)
+  const [activeLayer, setActiveLayer]     = useState<LayerType>('default')
 
   const defaultTileUrl = theme === 'dark'
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 
   const currentLayer = LAYERS.find(l => l.id === activeLayer)!
-  const tileUrl = activeLayer === 'default' ? defaultTileUrl : currentLayer.url
-  const tileKey = activeLayer === 'default' ? `default-${theme}` : activeLayer
+  const tileUrl      = activeLayer === 'default' ? defaultTileUrl : currentLayer.url
+  const tileKey      = activeLayer === 'default' ? `default-${theme}` : activeLayer
 
   useEffect(() => {
     async function fetchData() {
-      // ── photo_urls included so cards can show images ──
+      // ── Inscription cards ──
       const { data } = await supabase
         .from('inscriptions')
-        .select('id, title, type, state_province, country, year, script, photo_urls')
+        .select('id, shila_id, title, type, material_category, material_type, state_province, country, year, script, photo_urls')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
-
       if (data) setInscriptions(data)
 
+      // ── Map pins (includes all location fields for colour logic) ──
       const { data: mapData } = await supabase
         .from('inscriptions')
-        .select('id, title, type, state_province, country, year, latitude, longitude')
+        .select('id, shila_id, title, type, material_type, state_province, country, year, latitude, longitude, in_situ, original_location_known, current_lat, current_lng')
         .eq('status', 'approved')
-
       if (mapData) {
-        setMapInscriptions(mapData.filter((i: any) => i.latitude && i.longitude))
+        setMapInscriptions(mapData.filter((i: any) =>
+          (i.original_location_known && i.latitude && i.longitude) ||
+          (!i.original_location_known && i.current_lat && i.current_lng)
+        ))
       }
 
+      // ── Stats ──
       const { count: total } = await supabase
-        .from('inscriptions')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'approved')
-
+        .from('inscriptions').select('*', { count: 'exact', head: true }).eq('status', 'approved')
       const { data: countriesData } = await supabase
-        .from('inscriptions')
-        .select('country')
-        .eq('status', 'approved')
-
+        .from('inscriptions').select('country').eq('status', 'approved')
       const { data: scriptsData } = await supabase
-        .from('inscriptions')
-        .select('script')
-        .eq('status', 'approved')
+        .from('inscriptions').select('script').eq('status', 'approved')
 
-      const uniqueCountries = new Set(
-        countriesData?.map((i: any) => i.country).filter(Boolean)
-      ).size
-      const uniqueScripts = new Set(
-        scriptsData?.map((i: any) => i.script).filter(Boolean)
-      ).size
-
+      const uniqueCountries = new Set(countriesData?.map((i: any) => i.country).filter(Boolean)).size
+      const uniqueScripts   = new Set(scriptsData?.map((i: any) => i.script).filter(Boolean)).size
       setStats({ total: total || 0, countries: uniqueCountries, scripts: uniqueScripts })
       setLoading(false)
     }
@@ -110,28 +131,19 @@ export default function Home() {
   }, [])
 
   const handleSearch = () => {
-    if (search.trim()) {
-      navigate(`/inscriptions?search=${encodeURIComponent(search.trim())}`)
-    } else {
-      navigate('/inscriptions')
-    }
+    if (search.trim()) navigate(`/inscriptions?search=${encodeURIComponent(search.trim())}`)
+    else navigate('/inscriptions')
   }
 
   const filtered = activeFilter === 'All'
     ? inscriptions
-    : inscriptions.filter(i =>
-        i.type?.toLowerCase().includes(activeFilter.toLowerCase())
-      )
+    : inscriptions.filter(i => i.material_category === PILL_TO_CATEGORY[activeFilter])
 
   const displayed = filtered.slice(0, 6)
 
   const layerBtnStyle = (id: LayerType) => ({
-    padding: '4px 10px',
-    fontSize: '10px',
-    fontFamily: 'Arial, sans-serif',
-    letterSpacing: '.06em',
-    cursor: 'pointer',
-    border: 'none',
+    padding: '4px 10px', fontSize: '10px', fontFamily: 'Arial, sans-serif',
+    letterSpacing: '.06em', cursor: 'pointer', border: 'none',
     background: activeLayer === id
       ? (theme === 'dark' ? '#e8d8b0' : '#3d2a0a')
       : (theme === 'dark' ? 'rgba(10,10,10,0.82)' : 'rgba(245,240,228,0.92)'),
@@ -144,7 +156,7 @@ export default function Home() {
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Background floating scripts */}
+      {/* ── Background floating scripts ── */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', fontFamily: 'Georgia, serif', color: c.gold, opacity: .04, fontSize: '160px', top: '-30px', right: '-20px', transform: 'rotate(-8deg)', whiteSpace: 'nowrap', userSelect: 'none' }}>शिलालेख</div>
         <div style={{ position: 'absolute', fontFamily: 'Georgia, serif', color: c.gold, opacity: .03, fontSize: '200px', bottom: '60px', left: '-50px', transform: 'rotate(6deg)', whiteSpace: 'nowrap', userSelect: 'none' }}>SHILALEKH</div>
@@ -174,20 +186,20 @@ export default function Home() {
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
             style={{ flex: 1, background: c.bgCard, border: 'none', padding: '14px 20px', color: c.text, fontSize: '14px', fontFamily: 'Georgia, serif', outline: 'none' }}
           />
-          <button
-            onClick={handleSearch}
-            style={{ background: c.gold, border: 'none', padding: '14px 28px', color: '#0a0a0a', fontSize: '11px', letterSpacing: '.15em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', fontWeight: 600, flexShrink: 0 }}
-          >SEARCH</button>
+          <button onClick={handleSearch}
+            style={{ background: c.gold, border: 'none', padding: '14px 28px', color: '#0a0a0a', fontSize: '11px', letterSpacing: '.15em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', fontWeight: 600, flexShrink: 0 }}>
+            SEARCH
+          </button>
         </div>
 
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', padding: '0 24px' }}>
           {PILLS.map(pill => (
-            <button
-              key={pill}
-              onClick={() => setActiveFilter(pill)}
-              style={{ padding: '5px 16px', border: `0.5px solid ${activeFilter === pill ? c.gold : c.border}`, borderRadius: '99px', fontSize: '11px', color: activeFilter === pill ? c.gold : c.textDim, cursor: 'pointer', background: 'transparent', fontFamily: 'Arial, sans-serif', letterSpacing: '.05em' }}
-            >{pill}</button>
+            <button key={pill} onClick={() => setActiveFilter(pill)} style={{
+              padding: '5px 16px', border: `0.5px solid ${activeFilter === pill ? c.gold : c.border}`,
+              borderRadius: '99px', fontSize: '11px', color: activeFilter === pill ? c.gold : c.textDim,
+              cursor: 'pointer', background: 'transparent', fontFamily: 'Arial, sans-serif', letterSpacing: '.05em',
+            }}>{pill}</button>
           ))}
         </div>
       </div>
@@ -213,10 +225,10 @@ export default function Home() {
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif' }}>
             {activeFilter === 'All' ? 'RECENTLY ADDED' : activeFilter.toUpperCase()}
           </p>
-          <span
-            onClick={() => navigate('/inscriptions')}
-            style={{ fontSize: '10px', color: c.gold, letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
-          >VIEW ALL INSCRIPTIONS →</span>
+          <span onClick={() => navigate('/inscriptions')}
+            style={{ fontSize: '10px', color: c.gold, letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+            VIEW ALL INSCRIPTIONS →
+          </span>
         </div>
 
         {loading ? (
@@ -231,19 +243,15 @@ export default function Home() {
             {displayed.map(inscription => (
               <div
                 key={inscription.id}
-                onClick={() => navigate(`/inscription/${inscription.id}`)}
+                onClick={() => navigate(`/inscription/${inscription.shila_id || inscription.id}`)}
                 style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', transition: 'border-color 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = c.gold)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = c.border)}
               >
-                {/* ── Card image: show photo if available, else placeholder ── */}
                 {inscription.photo_urls?.[0] ? (
                   <div style={{ height: '160px', overflow: 'hidden', borderBottom: `0.5px solid ${c.borderLight}` }}>
-                    <img
-                      src={inscription.photo_urls[0]}
-                      alt={inscription.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    />
+                    <img src={inscription.photo_urls[0]} alt={inscription.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   </div>
                 ) : (
                   <div style={{ height: '160px', background: c.bg, borderBottom: `0.5px solid ${c.borderLight}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -255,10 +263,11 @@ export default function Home() {
                     <p style={{ fontSize: '9px', color: c.textFaint, letterSpacing: '.12em', fontFamily: 'Arial, sans-serif' }}>NO IMAGE AVAILABLE</p>
                   </div>
                 )}
-
                 <div style={{ padding: '16px 18px' }}>
-                  {inscription.type && (
-                    <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.orange, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>{inscription.type.toUpperCase()}</p>
+                  {(inscription.material_type || inscription.type) && (
+                    <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.orange, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>
+                      {(inscription.material_type || inscription.type).toUpperCase()}
+                    </p>
                   )}
                   <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.5, marginBottom: '12px' }}>{inscription.title}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: `0.5px solid ${c.borderLight}` }}>
@@ -282,10 +291,10 @@ export default function Home() {
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif' }}>
             EXPLORE ON THE MAP — {mapInscriptions.length} LOCATIONS
           </p>
-          <span
-            onClick={() => navigate('/map')}
-            style={{ fontSize: '10px', color: c.gold, letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
-          >OPEN FULL MAP →</span>
+          <span onClick={() => navigate('/map')}
+            style={{ fontSize: '10px', color: c.gold, letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+            OPEN FULL MAP →
+          </span>
         </div>
 
         <div style={{ border: `0.5px solid ${c.border}`, borderRadius: '8px', overflow: 'hidden', height: '320px', position: 'relative' }}>
@@ -307,24 +316,50 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Pin legend */}
+          <div style={{
+            position: 'absolute', bottom: '12px', left: '12px', zIndex: 1000,
+            background: theme === 'dark' ? 'rgba(10,10,10,0.85)' : 'rgba(245,240,228,0.95)',
+            border: theme === 'dark' ? '0.5px solid rgba(232,216,176,0.2)' : '0.5px solid rgba(61,42,10,0.15)',
+            borderRadius: '5px', padding: '8px 12px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+          }}>
+            {[
+              { colour: '#d4a843', label: 'Original · in situ' },
+              { colour: '#c87533', label: 'Original · moved' },
+              { colour: '#a8a8b0', label: 'Current location' },
+            ].map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: i < 2 ? '5px' : 0 }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: p.colour, flexShrink: 0 }} />
+                <span style={{ fontSize: '9px', color: theme === 'dark' ? '#e8d8b0' : '#3d2a0a', fontFamily: 'Arial, sans-serif', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>
+                  {p.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
           <MapContainer center={[20.5937, 78.9629]} zoom={3} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
             <TileLayer key={tileKey} url={tileUrl} attribution={currentLayer.attribution} />
-            {mapInscriptions.map(ins => (
-              <Marker key={ins.id} position={[ins.latitude, ins.longitude]} icon={defaultIcon}>
-                <Popup>
-                  <div style={{ fontFamily: 'Georgia, serif', minWidth: '180px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#1a1a1a' }}>{ins.title}</p>
-                    {ins.state_province && <p style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{ins.state_province}</p>}
-                    {ins.country && <p style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{ins.country}</p>}
-                    {ins.year && <p style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>{ins.year}</p>}
-                    <button onClick={() => navigate(`/inscription/${ins.id}`)}
-                      style={{ fontSize: '11px', background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '4px 12px', borderRadius: '3px', cursor: 'pointer', fontWeight: 600 }}>
-                      VIEW DETAILS
-                    </button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {mapInscriptions.map(ins => {
+              const coords = getPinCoords(ins)
+              if (!coords) return null
+              return (
+                <Marker key={ins.id} position={coords} icon={getPinIcon(ins)}>
+                  <Popup>
+                    <div style={{ fontFamily: 'Georgia, serif', minWidth: '180px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#1a1a1a' }}>{ins.title}</p>
+                      {ins.state_province && <p style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{ins.state_province}</p>}
+                      {ins.country && <p style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{ins.country}</p>}
+                      {ins.year && <p style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>{ins.year}</p>}
+                      <button onClick={() => navigate(`/inscription/${ins.shila_id || ins.id}`)}
+                        style={{ fontSize: '11px', background: '#d4a843', border: 'none', color: '#0a0a0a', padding: '4px 12px', borderRadius: '3px', cursor: 'pointer', fontWeight: 600 }}>
+                        VIEW DETAILS
+                      </button>
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            })}
           </MapContainer>
         </div>
       </div>
