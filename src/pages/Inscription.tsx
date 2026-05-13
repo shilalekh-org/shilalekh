@@ -5,23 +5,49 @@ import Nav from '../components/Nav'
 import { useTheme } from '../theme'
 import { useBookmarks } from '../lib/useBookmarks'
 
-// ─── Suggest-edit config ──────────────────────────────────────────────────────
-const EDITABLE_FIELDS = [
-  { key: 'title',               label: 'Title' },
-  { key: 'script',              label: 'Script' },
-  { key: 'language',            label: 'Language' },
-  { key: 'year',                label: 'Year / Date' },
-  { key: 'dynasty',             label: 'Dynasty' },
-  { key: 'reign_ruler',         label: 'Ruler / Reign' },
-  { key: 'condition',           label: 'Condition' },
-  { key: 'short_description',   label: 'Short Description' },
-  { key: 'actual_text',         label: 'Actual Text (original script)' },
-  { key: 'transliteration',     label: 'Transliteration' },
-  { key: 'translation_english', label: 'English Translation' },
-  { key: 'importance',          label: 'Importance / Significance' },
-  { key: 'detailed_information',label: 'Detailed Information' },
+// ─── Editable field config ────────────────────────────────────────────────────
+const EDITABLE_FIELDS: { key: string; label: string }[] = [
+  { key: 'title',                label: 'Title' },
+  { key: 'script',               label: 'Script' },
+  { key: 'language',             label: 'Language' },
+  { key: 'year',                 label: 'Year / Date' },
+  { key: 'dynasty',              label: 'Dynasty' },
+  { key: 'reign_ruler',          label: 'Ruler / Reign' },
+  { key: 'condition',            label: 'Condition' },
+  { key: 'short_description',    label: 'Short Description' },
+  { key: 'actual_text',          label: 'Actual Text' },
+  { key: 'transliteration',      label: 'Transliteration' },
+  { key: 'translation_english',  label: 'English Translation' },
+  { key: 'importance',           label: 'Importance' },
+  { key: 'detailed_information', label: 'Detailed Information' },
 ]
 
+const FIELD_MAP = Object.fromEntries(EDITABLE_FIELDS.map(f => [f.key, f.label]))
+
+// ─── Pencil button ────────────────────────────────────────────────────────────
+function PencilBtn({ onClick, gold }: { onClick: () => void; gold: string }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onClick() }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title="Suggest an edit"
+      style={{
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        padding: '2px 4px', display: 'inline-flex', alignItems: 'center',
+        opacity: hovered ? 1 : 0.3, transition: 'opacity 0.15s',
+        verticalAlign: 'middle', marginLeft: '4px',
+      }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    </button>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function Inscription() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -34,17 +60,18 @@ export default function Inscription() {
   const [copied, setCopied]               = useState(false)
 
   // Contributor
-  const [contributorHandle,   setContributorHandle]   = useState<string | null>(null)
+  const [contributorHandle,    setContributorHandle]    = useState<string | null>(null)
   const [contributorAnonymous, setContributorAnonymous] = useState(false)
 
   // Suggest-edit modal
   const [editOpen,       setEditOpen]       = useState(false)
-  const [editField,      setEditField]      = useState('')
+  const [editField,      setEditField]      = useState('')       // field key
   const [editSuggested,  setEditSuggested]  = useState('')
   const [editJustify,    setEditJustify]    = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editMsg,        setEditMsg]        = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editUser,       setEditUser]       = useState<any>(null)
+  const [isPhotoEdit,    setIsPhotoEdit]    = useState(false)
 
   // ── Fetch inscription ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -59,7 +86,7 @@ export default function Inscription() {
     })
   }, [id])
 
-  // ── Fetch auth user for suggest-edit ─────────────────────────────────────────
+  // ── Fetch auth user ──────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setEditUser(user))
   }, [])
@@ -109,39 +136,32 @@ export default function Inscription() {
   }
   const isBookmarked = inscription ? bookmarked.has(inscription.id) : false
 
-  // ── Suggest-edit open ─────────────────────────────────────────────────────────
-  const openEdit = () => {
+  // ── Open suggest-edit modal ───────────────────────────────────────────────────
+  const openEdit = (fieldKey: string, photo = false) => {
     if (!isLoggedIn) { navigate('/signin'); return }
-    setEditOpen(true); setEditMsg(null); setEditField(''); setEditSuggested(''); setEditJustify('')
+    setIsPhotoEdit(photo)
+    setEditField(photo ? 'photos' : fieldKey)
+    setEditSuggested('')
+    setEditJustify('')
+    setEditMsg(null)
+    setEditOpen(true)
   }
 
-  // ── Suggest-edit field change ─────────────────────────────────────────────────
-  const handleFieldChange = (key: string) => {
-    setEditField(key)
-    setEditSuggested('')  // reset suggested when field changes
-  }
-
-  const currentValueForField = (key: string): string => {
-    if (!inscription || !key) return ''
-    return inscription[key] ?? ''
-  }
-
-  // ── Suggest-edit submit ───────────────────────────────────────────────────────
+  // ── Submit suggest-edit ───────────────────────────────────────────────────────
   const submitEdit = async () => {
     setEditMsg(null)
-    if (!editField)          { setEditMsg({ type: 'error', text: 'Please select a field.' }); return }
     if (!editSuggested.trim()) { setEditMsg({ type: 'error', text: 'Please enter a suggested value.' }); return }
-    if (!editJustify.trim()) { setEditMsg({ type: 'error', text: 'Please provide a justification (source or reasoning).' }); return }
-    if (!editUser)           { navigate('/signin'); return }
-
+    if (!editJustify.trim())   { setEditMsg({ type: 'error', text: 'Please provide a justification or source.' }); return }
+    if (!editUser) { navigate('/signin'); return }
     setEditSubmitting(true)
+    const currentVal = isPhotoEdit ? null : (inscription?.[editField] ?? null)
     const { error } = await supabase.from('edit_requests').insert({
-      inscription_id: inscription.id,
-      submitted_by:   editUser.id,
-      field_name:     editField,
-      current_value:  currentValueForField(editField) || null,
+      inscription_id:  inscription.id,
+      submitted_by:    editUser.id,
+      field_name:      editField,
+      current_value:   currentVal ? String(currentVal) : null,
       suggested_value: editSuggested.trim(),
-      justification:  editJustify.trim(),
+      justification:   editJustify.trim(),
     })
     setEditSubmitting(false)
     if (error) setEditMsg({ type: 'error', text: error.message })
@@ -170,11 +190,36 @@ export default function Inscription() {
   const displayType      = inscription.material_type || inscription.type
   const displayPurpose   = inscription.purpose_category || inscription.purpose
 
+  // Fields shown in the key-fields grid with edit support
+  const keyFields = [
+    { label: 'Type',      value: displayType,             key: null },
+    { label: 'Script',    value: inscription.script,      key: 'script' },
+    { label: 'Language',  value: inscription.language,    key: 'language' },
+    { label: 'Year',      value: inscription.year,        key: 'year' },
+    { label: 'Dynasty',   value: inscription.dynasty,     key: 'dynasty' },
+    { label: 'Ruler',     value: inscription.reign_ruler, key: 'reign_ruler' },
+    { label: 'Purpose',   value: displayPurpose,          key: null },
+    { label: 'Condition', value: inscription.condition,   key: 'condition' },
+    { label: 'Country',   value: inscription.country || inscription.current_country, key: null },
+    { label: 'In Situ',   value: inscription.in_situ === true ? 'Yes' : inscription.in_situ === false ? 'No' : null, key: null },
+    { label: 'Height',    value: inscription.height_cm ? `${inscription.height_cm} cm` : null, key: null },
+    { label: 'Width',     value: inscription.width_cm  ? `${inscription.width_cm} cm`  : null, key: null },
+    { label: 'Depth',     value: inscription.depth_cm  ? `${inscription.depth_cm} cm`  : null, key: null },
+    { label: 'Accession No.', value: inscription.accession_number, key: null },
+  ].filter(f => f.value)
+
   const inputStyle = {
     width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px',
     padding: '10px 14px', color: c.text, fontSize: '13px', fontFamily: 'Georgia, serif',
     outline: 'none', boxSizing: 'border-box' as const,
   }
+
+  const SectionHeader = ({ label, fieldKey }: { label: string; fieldKey?: string }) => (
+    <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center' }}>
+      {label}
+      {fieldKey && <PencilBtn gold={c.gold} onClick={() => openEdit(fieldKey)} />}
+    </p>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
@@ -194,15 +239,17 @@ export default function Inscription() {
 
       {/* ── Suggest-edit modal ── */}
       {editOpen && (
-        <div onClick={() => { if (editMsg?.type === 'success') setEditOpen(false) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '32px', maxWidth: '540px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
               <div>
                 <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>SUGGEST AN EDIT</p>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 300, color: c.gold, margin: 0 }}>{inscription.title}</h2>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 300, color: c.gold, margin: 0 }}>
+                  {isPhotoEdit ? 'Photo correction' : FIELD_MAP[editField] || editField}
+                </h2>
+                <p style={{ fontSize: '11px', color: c.textDim, marginTop: '4px', fontFamily: 'Arial, sans-serif' }}>{inscription.title}</p>
               </div>
               <button onClick={() => setEditOpen(false)} style={{ background: 'transparent', border: 'none', color: c.textDim, fontSize: '22px', cursor: 'pointer', lineHeight: 1, marginTop: '-4px' }}>×</button>
             </div>
@@ -211,51 +258,42 @@ export default function Inscription() {
             {editMsg && (
               <div style={{ background: editMsg.type === 'error' ? 'rgba(196,98,45,0.1)' : 'rgba(212,168,67,0.1)', border: `0.5px solid ${editMsg.type === 'error' ? c.orange : c.gold}`, borderRadius: '4px', padding: '10px 14px', marginBottom: '16px' }}>
                 <p style={{ fontSize: '12px', color: editMsg.type === 'error' ? c.orange : c.gold, lineHeight: 1.5, margin: 0 }}>{editMsg.text}</p>
-                {editMsg.type === 'success' && <button onClick={() => setEditOpen(false)} style={{ background: 'transparent', border: 'none', color: c.gold, fontSize: '11px', letterSpacing: '.08em', cursor: 'pointer', padding: 0, marginTop: '8px', display: 'block' }}>CLOSE ×</button>}
+                {editMsg.type === 'success' && (
+                  <button onClick={() => setEditOpen(false)} style={{ background: 'transparent', border: 'none', color: c.gold, fontSize: '11px', letterSpacing: '.08em', cursor: 'pointer', padding: 0, marginTop: '8px', display: 'block' }}>CLOSE ×</button>
+                )}
               </div>
             )}
 
             {editMsg?.type !== 'success' && (
               <>
-                {/* Field selector */}
-                <div style={{ marginBottom: '14px' }}>
-                  <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>FIELD TO CORRECT *</p>
-                  <select value={editField} onChange={e => handleFieldChange(e.target.value)}
-                    style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const,
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px',
-                    }}>
-                    <option value="">Select field…</option>
-                    {EDITABLE_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                  </select>
-                </div>
-
-                {/* Current value (read-only) */}
-                {editField && (
+                {/* Current value — skip for photos */}
+                {!isPhotoEdit && inscription[editField] && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>CURRENT VALUE</p>
-                    <div style={{ ...inputStyle, background: c.bg, color: c.textDim, opacity: 0.75, minHeight: '40px', lineHeight: 1.6, borderStyle: 'dashed' }}>
-                      {currentValueForField(editField) || <em style={{ opacity: 0.5 }}>Not recorded</em>}
+                    <div style={{ ...inputStyle, color: c.textDim, opacity: 0.75, lineHeight: 1.6, borderStyle: 'dashed', minHeight: '40px' }}>
+                      {inscription[editField]}
                     </div>
                   </div>
                 )}
 
                 {/* Suggested value */}
                 <div style={{ marginBottom: '14px' }}>
-                  <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE *</p>
+                  <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>
+                    {isPhotoEdit ? 'DESCRIBE THE CORRECTION OR ADDITION' : 'SUGGESTED VALUE *'}
+                  </p>
                   <textarea value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
-                    placeholder="Enter the corrected value…" rows={3}
-                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                    placeholder={isPhotoEdit ? 'Describe the photo issue or what should be added/corrected…' : 'Enter the corrected value…'}
+                    rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
                 </div>
 
                 {/* Justification */}
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>JUSTIFICATION & SOURCE *</p>
                   <textarea value={editJustify} onChange={e => setEditJustify(e.target.value)}
-                    placeholder="Cite your source or explain the reasoning for this correction…" rows={3}
-                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
-                  <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '4px', lineHeight: 1.5 }}>
-                    All suggestions are reviewed by Shilalekh editors before any changes are made.
+                    placeholder="Cite your source or explain the reasoning for this correction…"
+                    rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                  <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '6px', lineHeight: 1.5 }}>
+                    All suggestions are reviewed by Shilalekh editors before any changes are applied.
                   </p>
                 </div>
 
@@ -277,7 +315,8 @@ export default function Inscription() {
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 32px 60px' }}>
 
-        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '16px', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }} onClick={() => navigate('/inscriptions')}>← BACK TO INSCRIPTIONS</p>
+        <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.textDim, marginBottom: '16px', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}
+          onClick={() => navigate('/inscriptions')}>← BACK TO INSCRIPTIONS</p>
 
         {/* Tags */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -287,42 +326,34 @@ export default function Inscription() {
           {inscription.script         && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.script.toUpperCase()}</span>}
         </div>
 
-        {/* Title */}
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: c.gold, marginBottom: '16px', letterSpacing: '.05em' }}>{inscription.title}</h1>
+        {/* Title with pencil */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '16px' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 300, color: c.gold, letterSpacing: '.05em', margin: 0, lineHeight: 1.2 }}>
+            {inscription.title}
+          </h1>
+          <div style={{ paddingTop: '10px' }}>
+            <PencilBtn gold={c.gold} onClick={() => openEdit('title')} />
+          </div>
+        </div>
 
-        {/* ShilaID + Share + Bookmark + Suggest Edit */}
+        {/* ShilaID + Share + Bookmark */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
           {inscription.shila_id && (
             <span style={{ fontFamily: '"Courier New", Courier, monospace', fontSize: '11px', color: c.textDim, background: c.bgCard, border: `0.5px solid ${c.border}`, padding: '5px 12px', borderRadius: '4px', letterSpacing: '.1em', userSelect: 'all' as const }}>
               {inscription.shila_id}
             </span>
           )}
-
-          {/* Share */}
           <button onClick={handleShare} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: copied ? 'rgba(212,168,67,0.1)' : 'transparent', border: `0.5px solid ${copied ? c.gold : c.border}`, color: copied ? c.gold : c.textDim, padding: '5px 14px', borderRadius: '4px', fontSize: '10px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s' }}
-            onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold } }}
-            onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim } }}>
+            onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}}
+            onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}}>
             <span style={{ fontSize: '12px' }}>{copied ? '✓' : '⎘'}</span>
             {copied ? 'LINK COPIED' : 'SHARE'}
           </button>
-
-          {/* Bookmark */}
           <button onClick={handleBookmark} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isBookmarked ? 'rgba(212,168,67,0.1)' : 'transparent', border: `0.5px solid ${isBookmarked ? c.gold : c.border}`, color: isBookmarked ? c.gold : c.textDim, padding: '5px 14px', borderRadius: '4px', fontSize: '10px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s' }}
-            onMouseEnter={e => { if (!isBookmarked) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold } }}
-            onMouseLeave={e => { if (!isBookmarked) { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim } }}>
+            onMouseEnter={e => { if (!isBookmarked) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}}
+            onMouseLeave={e => { if (!isBookmarked) { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}}>
             <svg width="10" height="13" viewBox="0 0 14 18" fill={isBookmarked ? c.gold : 'none'} stroke={isBookmarked ? c.gold : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1h12v15l-6-4-6 4V1z"/></svg>
             {isBookmarked ? 'BOOKMARKED' : 'BOOKMARK'}
-          </button>
-
-          {/* Suggest edit */}
-          <button onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '5px 14px', borderRadius: '4px', fontSize: '10px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            SUGGEST EDIT
           </button>
         </div>
 
@@ -337,7 +368,18 @@ export default function Inscription() {
         {/* PHOTOGRAPHS */}
         {photos.length > 0 && (
           <div style={{ marginBottom: '32px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '14px', fontFamily: 'Arial, sans-serif' }}>PHOTOGRAPHS</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif', margin: 0 }}>PHOTOGRAPHS</p>
+              <button onClick={() => openEdit('photos', true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '4px 12px', borderRadius: '4px', fontSize: '9px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                SUGGEST PHOTO CORRECTION
+              </button>
+            </div>
             <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', cursor: 'zoom-in', border: `0.5px solid ${c.border}` }} onClick={() => setLightboxIndex(0)}>
               <img src={photos[0]} alt={inscription.title} style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }} />
             </div>
@@ -354,34 +396,40 @@ export default function Inscription() {
           </div>
         )}
 
+        {/* Suggest photo when no photos yet */}
+        {photos.length === 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif', margin: 0 }}>PHOTOGRAPHS</p>
+              <button onClick={() => openEdit('photos', true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'transparent', border: `0.5px solid ${c.border}`, color: c.textDim, padding: '4px 12px', borderRadius: '4px', fontSize: '9px', letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                SUGGEST A PHOTO
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* SHORT DESCRIPTION */}
         {inscription.short_description && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '32px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>SHORT DESCRIPTION</p>
+            <SectionHeader label="SHORT DESCRIPTION" fieldKey="short_description" />
             <p style={{ fontSize: '15px', color: c.text, lineHeight: 1.8 }}>{inscription.short_description}</p>
           </div>
         )}
 
         {/* KEY FIELDS */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
-          {[
-            { label: 'Type',      value: displayType },
-            { label: 'Script',    value: inscription.script },
-            { label: 'Language',  value: inscription.language },
-            { label: 'Year',      value: inscription.year },
-            { label: 'Dynasty',   value: inscription.dynasty },
-            { label: 'Ruler',     value: inscription.reign_ruler },
-            { label: 'Purpose',   value: displayPurpose },
-            { label: 'Condition', value: inscription.condition },
-            { label: 'Country',   value: inscription.country || inscription.current_country },
-            { label: 'In Situ',   value: inscription.in_situ === true ? 'Yes' : inscription.in_situ === false ? 'No' : null },
-            { label: 'Height',    value: inscription.height_cm ? `${inscription.height_cm} cm` : null },
-            { label: 'Width',     value: inscription.width_cm  ? `${inscription.width_cm} cm`  : null },
-            { label: 'Depth',     value: inscription.depth_cm  ? `${inscription.depth_cm} cm`  : null },
-            { label: 'Accession No.', value: inscription.accession_number },
-          ].filter(f => f.value).map((f, i) => (
+          {keyFields.map((f, i) => (
             <div key={i} style={{ background: c.bgCard, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '12px 14px' }}>
-              <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>{f.label.toUpperCase()}</p>
+              <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center' }}>
+                {f.label.toUpperCase()}
+                {f.key && <PencilBtn gold={c.gold} onClick={() => openEdit(f.key!)} />}
+              </p>
               <p style={{ fontSize: '13px', color: c.text, fontWeight: 300 }}>{f.value}</p>
             </div>
           ))}
@@ -390,7 +438,7 @@ export default function Inscription() {
         {/* ACTUAL TEXT */}
         {inscription.actual_text && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>ACTUAL TEXT</p>
+            <SectionHeader label="ACTUAL TEXT" fieldKey="actual_text" />
             <p style={{ fontSize: '16px', color: c.text, lineHeight: 2 }}>{inscription.actual_text}</p>
           </div>
         )}
@@ -398,7 +446,7 @@ export default function Inscription() {
         {/* TRANSLITERATION */}
         {inscription.transliteration && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLITERATION</p>
+            <SectionHeader label="TRANSLITERATION" fieldKey="transliteration" />
             <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.8, fontStyle: 'italic' }}>{inscription.transliteration}</p>
           </div>
         )}
@@ -406,7 +454,7 @@ export default function Inscription() {
         {/* TRANSLATION */}
         {inscription.translation_english && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>TRANSLATION</p>
+            <SectionHeader label="TRANSLATION" fieldKey="translation_english" />
             <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.8 }}>{inscription.translation_english}</p>
           </div>
         )}
@@ -414,7 +462,7 @@ export default function Inscription() {
         {/* IMPORTANCE */}
         {inscription.importance && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>IMPORTANCE</p>
+            <SectionHeader label="IMPORTANCE" fieldKey="importance" />
             <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8 }}>{inscription.importance}</p>
           </div>
         )}
@@ -422,7 +470,7 @@ export default function Inscription() {
         {/* DETAILED INFORMATION */}
         {inscription.detailed_information && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '24px', marginBottom: '24px' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '12px', fontFamily: 'Arial, sans-serif' }}>DETAILED INFORMATION</p>
+            <SectionHeader label="DETAILED INFORMATION" fieldKey="detailed_information" />
             <p style={{ fontSize: '13px', color: c.textMuted, lineHeight: 1.8 }}>{inscription.detailed_information}</p>
           </div>
         )}
@@ -453,8 +501,7 @@ export default function Inscription() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11px', color: c.textDim, fontFamily: 'Arial, sans-serif' }}>Contributed by</span>
               {contributorHandle ? (
-                <span onClick={() => navigate(`/u/${contributorHandle}`)}
-                  style={{ fontSize: '12px', color: c.gold, fontFamily: '"Courier New", Courier, monospace', cursor: 'pointer', letterSpacing: '.05em' }}
+                <span onClick={() => navigate(`/u/${contributorHandle}`)} style={{ fontSize: '12px', color: c.gold, fontFamily: '"Courier New", Courier, monospace', cursor: 'pointer', letterSpacing: '.05em' }}
                   onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                   onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
                   @{contributorHandle}

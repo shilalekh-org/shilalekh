@@ -16,7 +16,8 @@ const COUNTRIES = [
   'Brazil', 'Argentina', 'Mexico', 'South Africa', 'Nigeria', 'Kenya', 'Other',
 ]
 
-const HANDLE_REGEX = /^[a-z0-9_]{3,20}$/
+const HANDLE_REGEX  = /^[a-z0-9_]{3,20}$/
+const ORCID_REGEX   = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/
 type Msg = { type: 'success' | 'error'; text: string } | null
 
 export default function Account() {
@@ -26,37 +27,38 @@ export default function Account() {
   const [loading, setLoading] = useState(true)
   const [isGoogleUser, setIsGoogleUser] = useState(false)
 
-  // ── Public profile (profiles table) ──
+  // ── Public profile ──
   const [avatar, setAvatar]           = useState('surya')
   const [handle, setHandle]           = useState('')
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio]                 = useState('')
+  const [orcidId, setOrcidId]         = useState('')
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMsg, setProfileMsg] = useState<Msg>(null)
+  const [profileMsg, setProfileMsg]   = useState<Msg>(null)
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle')
   const [originalHandle, setOriginalHandle] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Personal info (auth metadata) ──
-  const [fullName, setFullName]         = useState('')
-  const [phone, setPhone]               = useState('')
-  const [institution, setInstitution]   = useState('')
-  const [role, setRole]                 = useState('')
-  const [country, setCountry]           = useState('')
-  const [infoSaving, setInfoSaving]     = useState(false)
-  const [infoMsg, setInfoMsg]           = useState<Msg>(null)
+  // ── Personal info ──
+  const [fullName, setFullName]       = useState('')
+  const [phone, setPhone]             = useState('')
+  const [institution, setInstitution] = useState('')
+  const [role, setRole]               = useState('')
+  const [country, setCountry]         = useState('')
+  const [infoSaving, setInfoSaving]   = useState(false)
+  const [infoMsg, setInfoMsg]         = useState<Msg>(null)
 
   // ── Email ──
-  const [newEmail, setNewEmail]   = useState('')
+  const [newEmail, setNewEmail]       = useState('')
   const [emailSaving, setEmailSaving] = useState(false)
-  const [emailMsg, setEmailMsg]   = useState<Msg>(null)
+  const [emailMsg, setEmailMsg]       = useState<Msg>(null)
 
   // ── Password ──
-  const [newPassword, setNewPassword]       = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordSaving, setPasswordSaving] = useState(false)
-  const [passwordMsg, setPasswordMsg]       = useState<Msg>(null)
+  const [newPassword, setNewPassword]           = useState('')
+  const [confirmPassword, setConfirmPassword]   = useState('')
+  const [passwordSaving, setPasswordSaving]     = useState(false)
+  const [passwordMsg, setPasswordMsg]           = useState<Msg>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -70,15 +72,14 @@ export default function Account() {
       setRole(m.role || '')
       setCountry(m.country || '')
 
-      // Load public profile
-      const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (prof) {
         setAvatar(prof.avatar_id || 'surya')
         setHandle(prof.handle || '')
         setOriginalHandle(prof.handle || '')
         setDisplayName(prof.display_name || '')
         setBio(prof.bio || '')
+        setOrcidId(prof.orcid_id || '')
         setIsAnonymous(prof.is_anonymous || false)
       }
       setLoading(false)
@@ -107,12 +108,17 @@ export default function Account() {
 
   const handleStatusColor = { idle: c.textFaint, checking: c.textDim, available: '#4a9e6a', taken: c.orange, invalid: c.orange }[handleStatus]
   const handleStatusText  = {
-    idle: handle === originalHandle ? (handle ? `Your current handle is @${handle}` : '') : 'Letters a–z, numbers, underscores. 3–20 chars.',
-    checking: 'Checking availability…',
+    idle:      handle === originalHandle ? (handle ? `Your current handle is @${handle}` : '') : 'Letters a–z, numbers, underscores. 3–20 chars.',
+    checking:  'Checking availability…',
     available: `@${handle} is available`,
-    taken: `@${handle} is already taken`,
-    invalid: 'Use only a–z, 0–9, underscores. Min 3, max 20 characters.',
+    taken:     `@${handle} is already taken`,
+    invalid:   'Use only a–z, 0–9, underscores. Min 3, max 20 characters.',
   }[handleStatus]
+
+  // ORCID format validation (live)
+  const orcidRaw    = orcidId.replace(/\s/g, '')
+  const orcidValid  = orcidRaw === '' || ORCID_REGEX.test(orcidRaw)
+  const orcidStatus = orcidRaw === '' ? null : orcidValid ? 'valid' : 'invalid'
 
   const savePublicProfile = async () => {
     setProfileMsg(null)
@@ -120,13 +126,16 @@ export default function Account() {
     if (!HANDLE_REGEX.test(handle)) { setProfileMsg({ type: 'error', text: 'Invalid handle format.' }); return }
     if (handleStatus === 'taken') { setProfileMsg({ type: 'error', text: 'That handle is already taken.' }); return }
     if (handleStatus === 'checking') { setProfileMsg({ type: 'error', text: 'Please wait — checking handle.' }); return }
+    if (orcidRaw && !ORCID_REGEX.test(orcidRaw)) { setProfileMsg({ type: 'error', text: 'ORCID iD format is invalid. Expected: 0000-0000-0000-0000' }); return }
+
     setProfileSaving(true)
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       handle: handle.trim().toLowerCase(),
       display_name: isAnonymous ? null : displayName.trim() || null,
-      bio: isAnonymous ? null : bio.trim() || null,
-      avatar_id: avatar,
+      bio:          isAnonymous ? null : bio.trim() || null,
+      orcid_id:     orcidRaw || null,
+      avatar_id:    avatar,
       is_anonymous: isAnonymous,
       profile_completed: true,
     })
@@ -206,7 +215,6 @@ export default function Account() {
       <Nav />
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '100px 24px 60px' }}>
 
-        {/* Header */}
         <div style={{ marginBottom: '36px' }}>
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '6px' }}>SETTINGS</p>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 300, color: c.text, margin: '0 0 12px' }}>My account</h1>
@@ -231,7 +239,7 @@ export default function Account() {
           <div style={{ width: '30px', height: '0.5px', background: c.gold, opacity: 0.5, margin: '14px 0 22px' }} />
           <MsgBox msg={profileMsg} />
 
-          {/* Avatar preview + picker */}
+          {/* Avatar preview */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
             <AvatarDisplay avatarId={avatar} size={56} fallbackLetter={displayName[0] || '?'} />
             <div>
@@ -243,6 +251,7 @@ export default function Account() {
           <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '14px', fontFamily: 'Arial, sans-serif' }}>CHOOSE AVATAR</p>
           <AvatarPicker selected={avatar} onChange={setAvatar} gold={c.gold} textDim={c.textDim} />
 
+          {/* Handle */}
           <div style={{ marginTop: '22px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '8px', fontFamily: 'Arial, sans-serif' }}>HANDLE *</p>
             <div style={{ position: 'relative' }}>
@@ -254,6 +263,7 @@ export default function Account() {
             {handleStatus !== 'idle' && <p style={{ fontSize: '11px', color: handleStatusColor, marginBottom: '12px' }}>{handleStatusText}</p>}
           </div>
 
+          {/* Display name + Bio */}
           <div style={{ opacity: isAnonymous ? 0.45 : 1, transition: 'opacity 0.2s' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '8px', marginTop: '4px', fontFamily: 'Arial, sans-serif' }}>DISPLAY NAME</p>
             <input type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} disabled={isAnonymous} style={{ ...inputStyle, cursor: isAnonymous ? 'not-allowed' : 'text' }} />
@@ -261,6 +271,35 @@ export default function Account() {
             <textarea placeholder="Research interests, institution, specialisation…" value={bio} onChange={e => setBio(e.target.value)} disabled={isAnonymous} maxLength={300} rows={3}
               style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, cursor: isAnonymous ? 'not-allowed' : 'text' }} />
             <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '-4px', marginBottom: '14px' }}>{bio.length}/300</p>
+          </div>
+
+          {/* ORCID iD */}
+          <div style={{ marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, margin: 0, fontFamily: 'Arial, sans-serif' }}>ORCID iD (OPTIONAL)</p>
+              {/* ORCID logo */}
+              <svg width="14" height="14" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="128" cy="128" r="128" fill="#A6CE39"/>
+                <path d="M86.3 186.2H70.9V79.1h15.4v107.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7C191.7 111.2 178 93 148 93h-23.7v79.4zM88.7 56.8c0 5.5-4.5 9.9-10 9.9s-10-4.4-10-9.9c0-5.5 4.5-9.9 10-9.9s10 4.4 10 9.9z" fill="#fff"/>
+              </svg>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input type="text" placeholder="0000-0000-0000-0000" value={orcidId}
+                onChange={e => setOrcidId(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '4px', fontFamily: '"Courier New", monospace', fontSize: '13px' }} />
+            </div>
+            {orcidStatus === 'valid' && (
+              <p style={{ fontSize: '11px', color: '#4a9e6a', marginBottom: '4px' }}>
+                ✓ Valid ORCID iD · <a href={`https://orcid.org/${orcidRaw}`} target="_blank" rel="noopener noreferrer" style={{ color: '#A6CE39', textDecoration: 'none' }}>view profile</a>
+              </p>
+            )}
+            {orcidStatus === 'invalid' && (
+              <p style={{ fontSize: '11px', color: c.orange, marginBottom: '4px' }}>Format must be: 0000-0000-0000-0000 (last character may be X)</p>
+            )}
+            <p style={{ fontSize: '11px', color: c.textFaint, lineHeight: 1.5 }}>
+              ORCID provides a persistent identifier for researchers.{' '}
+              <a href="https://orcid.org/register" target="_blank" rel="noopener noreferrer" style={{ color: c.gold, textDecoration: 'none' }}>Register free at orcid.org</a>
+            </p>
           </div>
 
           {/* Anonymous toggle */}
