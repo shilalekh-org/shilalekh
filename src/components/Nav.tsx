@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTheme } from '../theme'
+import { AvatarDisplay } from '../lib/avatars'
 
 function LogoIcon({ theme = 'dark' }: { theme?: string }) {
   const gold = theme === 'dark' ? '#d4a843' : '#8a6c28'
@@ -34,38 +35,57 @@ function LogoIcon({ theme = 'dark' }: { theme?: string }) {
 export default function Nav() {
   const navigate = useNavigate()
   const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
 
-  const navBg = theme === 'dark' ? 'rgba(10,10,10,0.97)' : 'rgba(250,248,243,0.97)'
+  const navBg     = theme === 'dark' ? 'rgba(10,10,10,0.97)' : 'rgba(250,248,243,0.97)'
   const navBorder = theme === 'dark' ? '#2a2a2a' : '#e0ddd5'
   const linkColor = theme === 'dark' ? '#888780' : '#6a6860'
   const logoLatinColor = theme === 'dark' ? '#e8e4d9' : '#1a1a18'
-  const menuBg = theme === 'dark' ? '#0a0a0a' : '#faf8f3'
+  const menuBg    = theme === 'dark' ? '#0a0a0a' : '#faf8f3'
+
+  async function fetchProfile(userId: string) {
+    const { data } = await supabase
+      .from('profiles').select('handle, avatar_id, display_name, is_anonymous').eq('id', userId).single()
+    if (data) setProfile(data)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) fetchProfile(u.id)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) fetchProfile(u.id)
+      else setProfile(null)
     })
     return () => subscription.unsubscribe()
   }, [])
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    setUser(null)
+    setUser(null); setProfile(null); setMenuOpen(false)
+  }
+
+  const goToProfile = () => {
+    if (profile?.handle) navigate(`/@${profile.handle}`)
+    else navigate('/account')
     setMenuOpen(false)
   }
 
   const links = [
-    { label: 'EXPLORE', path: '/map' },
-    { label: 'INSCRIPTIONS', path: '/inscriptions' },
-    { label: 'CONTRIBUTE', path: '/submit' },
-    { label: 'ABOUT', path: '/about' },
-    { label: 'HELP', path: '/help' },
+    { label: 'EXPLORE',       path: '/map' },
+    { label: 'INSCRIPTIONS',  path: '/inscriptions' },
+    { label: 'CONTRIBUTE',    path: '/submit' },
+    { label: 'ABOUT',         path: '/about' },
+    { label: 'HELP',          path: '/help' },
   ]
+
+  const fallbackLetter = profile?.display_name?.[0] || user?.email?.[0] || '?'
 
   return (
     <>
@@ -90,15 +110,16 @@ export default function Nav() {
                 {link.label}
               </span>
             ))}
+
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Username — click to go to account settings */}
-                <span
-                  onClick={() => navigate('/account')}
-                  title="Account settings"
-                  style={{ fontSize: '11px', color: '#d4a843', letterSpacing: '.05em', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-                  {user.email?.split('@')[0].toUpperCase()}
-                </span>
+                {/* Avatar — click to go to profile */}
+                <div onClick={goToProfile} title={profile?.handle ? `@${profile.handle}` : 'My profile'}
+                  style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                  <AvatarDisplay avatarId={profile?.avatar_id} size={34} fallbackLetter={fallbackLetter} />
+                </div>
                 <button onClick={signOut} style={{ background: 'transparent', border: `0.5px solid ${linkColor}`, color: linkColor, padding: '6px 16px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: 'pointer' }}>
                   SIGN OUT
                 </button>
@@ -114,15 +135,10 @@ export default function Nav() {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}>
               {theme === 'dark' ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888780" strokeWidth="1.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="5"/>
-                  <line x1="12" y1="1" x2="12" y2="3"/>
-                  <line x1="12" y1="21" x2="12" y2="23"/>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                  <line x1="1" y1="12" x2="3" y2="12"/>
-                  <line x1="21" y1="12" x2="23" y2="12"/>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                 </svg>
               ) : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6860" strokeWidth="1.5" strokeLinecap="round">
@@ -138,7 +154,6 @@ export default function Nav() {
             <span style={{ display: 'block', width: '22px', height: '1px', background: menuOpen ? '#d4a843' : linkColor }}></span>
             <span style={{ display: 'block', width: '22px', height: '1px', background: menuOpen ? '#d4a843' : linkColor }}></span>
           </button>
-
         </div>
       </nav>
 
@@ -153,9 +168,15 @@ export default function Nav() {
           ))}
           {user ? (
             <>
+              <div onClick={goToProfile} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}`, cursor: 'pointer' }}>
+                <AvatarDisplay avatarId={profile?.avatar_id} size={28} fallbackLetter={fallbackLetter} />
+                <span style={{ fontSize: '12px', color: '#d4a843', letterSpacing: '.05em' }}>
+                  {profile?.handle ? `@${profile.handle}` : 'MY PROFILE'}
+                </span>
+              </div>
               <span onClick={() => { navigate('/account'); setMenuOpen(false) }}
-                style={{ fontSize: '12px', color: '#d4a843', letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
-                MY ACCOUNT
+                style={{ fontSize: '12px', color: linkColor, letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
+                ACCOUNT SETTINGS
               </span>
               <span onClick={signOut}
                 style={{ fontSize: '12px', color: linkColor, letterSpacing: '.1em', cursor: 'pointer', padding: '14px 0', borderBottom: `0.5px solid ${navBorder}` }}>
