@@ -97,6 +97,9 @@ export default function Inscription() {
   const [editMsg,        setEditMsg]        = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editUser,       setEditUser]       = useState<any>(null)
   const [isPhotoEdit,    setIsPhotoEdit]    = useState(false)
+  const [photoFile,      setPhotoFile]      = useState<File | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoPreview,   setPhotoPreview]   = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -140,25 +143,39 @@ export default function Inscription() {
   const openEdit = (fieldKey: string, photo = false) => {
     if (!isLoggedIn) { navigate('/signin'); return }
     setIsPhotoEdit(photo); setEditField(photo ? 'photos' : fieldKey)
-    setEditSuggested(''); setEditJustify(''); setEditMsg(null); setEditOpen(true)
+    setEditSuggested(''); setEditJustify(''); setEditMsg(null); setPhotoFile(null); setPhotoPreview(null); setEditOpen(true)
   }
 
   const submitEdit = async () => {
     setEditMsg(null)
     if (!isPhotoEdit && !editField) { setEditMsg({ type: 'error', text: 'Please select a field to correct.' }); return }
-    if (!editSuggested.trim()) { setEditMsg({ type: 'error', text: 'Please enter a suggested value.' }); return }
-    if (!editJustify.trim())   { setEditMsg({ type: 'error', text: 'Please provide a justification or source.' }); return }
+    if (isPhotoEdit && !photoFile)  { setEditMsg({ type: 'error', text: 'Please select a photo to upload.' }); return }
+    if (!isPhotoEdit && !editSuggested.trim()) { setEditMsg({ type: 'error', text: 'Please enter a suggested value.' }); return }
+    if (!editJustify.trim()) { setEditMsg({ type: 'error', text: 'Please provide a justification or source.' }); return }
     if (!editUser) { navigate('/signin'); return }
     setEditSubmitting(true)
+    let suggestedValue = editSuggested.trim()
+    if (isPhotoEdit && photoFile) {
+      setPhotoUploading(true)
+      const ext  = photoFile.name.split('.').pop()
+      const path = `suggested/${inscription.id}/${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('inscription-photos')
+        .upload(path, photoFile, { upsert: false })
+      setPhotoUploading(false)
+      if (uploadErr) { setEditSubmitting(false); setEditMsg({ type: 'error', text: `Upload failed: ${uploadErr.message}` }); return }
+      const { data: urlData } = supabase.storage.from('inscription-photos').getPublicUrl(path)
+      suggestedValue = urlData.publicUrl
+    }
     const currentVal = isPhotoEdit ? null : (inscription?.[editField] ?? null)
     const { error } = await supabase.from('edit_requests').insert({
       inscription_id: inscription.id, submitted_by: editUser.id,
-      field_name: editField || 'general', current_value: currentVal ? String(currentVal) : null,
-      suggested_value: editSuggested.trim(), justification: editJustify.trim(),
+      field_name: 'photos', current_value: currentVal ? String(currentVal) : null,
+      suggested_value: suggestedValue, justification: editJustify.trim(),
     })
     setEditSubmitting(false)
     if (error) setEditMsg({ type: 'error', text: error.message })
-    else setEditMsg({ type: 'success', text: 'Thank you — your suggestion has been submitted for review.' })
+    else setEditMsg({ type: 'success', text: 'Thank you — your photo has been submitted for review.' })
   }
 
   const shortId = (uuid: string) => uuid.replace(/-/g, '').slice(0, 8)
@@ -268,14 +285,37 @@ export default function Inscription() {
                     <div style={{ ...inputStyle, color: c.textDim, opacity: 0.75, lineHeight: 1.6, borderStyle: 'dashed', minHeight: '40px' }}>{inscription[editField]}</div>
                   </div>
                 )}
-                <div style={{ marginBottom: '14px' }}>
-                  <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>
-                    {isPhotoEdit ? 'DESCRIBE THE CORRECTION OR ADDITION' : 'SUGGESTED VALUE *'}
-                  </p>
-                  <textarea value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
-                    placeholder={isPhotoEdit ? 'Describe the photo issue or what should be added…' : 'Enter the corrected value…'}
-                    rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
-                </div>
+                {isPhotoEdit ? (
+                  <div style={{ marginBottom: '14px' }}>
+                    <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>PHOTO *</p>
+                    <label style={{ display: 'block', border: `1px dashed ${c.border}`, borderRadius: '6px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: c.bg }}>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0] || null
+                          setPhotoFile(file)
+                          setPhotoPreview(file ? URL.createObjectURL(file) : null)
+                        }} />
+                      {photoPreview ? (
+                        <img src={photoPreview} style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '4px', display: 'block', margin: '0 auto 8px' }} />
+                      ) : (
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c.textFaint} strokeWidth="1.2" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}>
+                          <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M3 16l5-5 4 4 3-3 6 6"/>
+                        </svg>
+                      )}
+                      <p style={{ fontSize: '12px', color: c.textDim, margin: 0 }}>
+                        {photoFile ? photoFile.name : 'Click to select a photo (JPEG, PNG, WebP)'}
+                      </p>
+                      {photoFile && <p style={{ fontSize: '11px', color: c.textFaint, margin: '4px 0 0' }}>Click to change</p>}
+                    </label>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '14px' }}>
+                    <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE *</p>
+                    <textarea value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
+                      placeholder="Enter the corrected value…"
+                      rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                  </div>
+                )}
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>JUSTIFICATION & SOURCE *</p>
                   <textarea value={editJustify} onChange={e => setEditJustify(e.target.value)}
@@ -350,7 +390,7 @@ export default function Inscription() {
               onMouseEnter={e => { e.currentTarget.style.borderColor = c.orange; e.currentTarget.style.color = c.orange }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.color = c.textDim }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              {photos.length === 0 ? 'SUGGEST A PHOTO' : 'SUGGEST PHOTO CORRECTION'}
+              {photos.length === 0 ? 'UPLOAD A PHOTO' : 'UPLOAD / CORRECT PHOTO'}
             </button>
           </div>
           {photos.length === 0 ? (
