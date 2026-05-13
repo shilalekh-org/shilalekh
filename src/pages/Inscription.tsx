@@ -72,7 +72,7 @@ function AccordionSection({ label, children, defaultOpen = false, onEdit, editCo
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif', margin: 0 }}>{label}</p>
           {onEdit && open && (
-            <PencilBtn color={editColor || c.orange} onClick={e => { onEdit() }} />
+            <PencilBtn color={editColor || c.orange} onClick={() => { onEdit!() }} />
           )}
         </div>
         <span style={{ fontSize: '18px', color: c.textDim, lineHeight: 1, transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(45deg)' : 'none' }}>+</span>
