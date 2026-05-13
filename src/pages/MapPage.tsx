@@ -100,9 +100,7 @@ export default function MapPage() {
   const clearFilters = () => { setFCountry(''); setFScript(''); setFMaterial(''); setFInSitu('') }
 
   // ── Styles ─────────────────────────────────────────────────────────────────
-  const legendBg     = theme === 'dark' ? 'rgba(10,10,10,0.92)' : 'rgba(245,240,228,0.97)'
   const legendBorder = theme === 'dark' ? 'rgba(232,216,176,0.18)' : 'rgba(61,42,10,0.18)'
-  const legendText   = theme === 'dark' ? '#e8d8b0' : '#3d2a0a'
   const legendDim    = theme === 'dark' ? 'rgba(232,216,176,0.45)' : 'rgba(61,42,10,0.45)'
   const panelBg      = theme === 'dark' ? '#0f0f0f' : '#faf8f3'
   const panelBorder  = theme === 'dark' ? '#2a2a2a' : '#e0ddd5'

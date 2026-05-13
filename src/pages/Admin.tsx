@@ -162,7 +162,7 @@ export default function Admin() {
   const rejected     = inscriptions.filter(i => i.status === 'rejected')
   const pendingEdits = editRequests.filter(r => r.status === 'pending')
   const displayed    = activeTab === 'pending' ? pending : activeTab === 'approved' ? approved : activeTab === 'rejected' ? rejected : []
-  const displayedEdits = activeTab === 'edits' ? editRequests : []
+  // edit requests shown directly in JSX
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })

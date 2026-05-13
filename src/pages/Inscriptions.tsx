@@ -28,7 +28,7 @@ const getPinPos  = (ins: any): [number, number] | null => {
 }
 
 // ─── Bookmark button ──────────────────────────────────────────────────────────
-function BookmarkBtn({ id, bookmarked, isLoggedIn, onToggle }: { id: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
+function BookmarkBtn({ id: _id, bookmarked, isLoggedIn, onToggle }: { id: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
   return (
     <button onClick={onToggle} title={isLoggedIn ? (bookmarked ? 'Remove bookmark' : 'Bookmark') : 'Sign in to bookmark'}
       style={{ background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, opacity: bookmarked ? 1 : 0.35, transition: 'opacity 0.15s' }}
