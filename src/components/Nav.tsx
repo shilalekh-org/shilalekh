@@ -72,7 +72,7 @@ export default function Nav() {
   }
 
   const goToProfile = () => {
-    if (profile?.handle) navigate(`/@${profile.handle}`)
+    if (profile?.handle) navigate(`/u/${profile.handle}`)
     else navigate('/account')
     setMenuOpen(false)
   }

@@ -89,7 +89,7 @@ export default function CompleteProfile() {
       if (error.code === '23505') setMessage({ type: 'error', text: 'That handle was just taken. Please try another.' })
       else setMessage({ type: 'error', text: error.message })
     } else {
-      navigate(`/@${handle.trim().toLowerCase()}`)
+      navigate(`/u/${handle.trim().toLowerCase()}`)
     }
   }
 

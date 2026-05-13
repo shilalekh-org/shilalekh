@@ -222,7 +222,7 @@ export default function Account() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, margin: 0 }}>PUBLIC PROFILE</p>
             {handle && (
-              <span onClick={() => navigate(`/@${handle}`)} style={{ fontSize: '10px', color: c.gold, cursor: 'pointer', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              <span onClick={() => navigate(`/u/${handle}`)} style={{ fontSize: '10px', color: c.gold, cursor: 'pointer', letterSpacing: '.05em', fontFamily: 'Arial, sans-serif', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
                 VIEW PROFILE →
               </span>
             )}

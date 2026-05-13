@@ -75,7 +75,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/account" element={<Account />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
-        <Route path="/@:handle" element={<ProfilePage />} />
+        <Route path="/u/:handle" element={<ProfilePage />} />
       </Routes>
     </>
   )

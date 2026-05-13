@@ -364,7 +364,7 @@ export default function Inscription() {
               {contributorHandle ? (
                 // Has a public handle → link to profile
                 <span
-                  onClick={() => navigate(`/@${contributorHandle}`)}
+                  onClick={() => navigate(`/u/${contributorHandle}`)}
                   style={{ fontSize: '12px', color: c.gold, fontFamily: '"Courier New", Courier, monospace', cursor: 'pointer', letterSpacing: '.05em' }}
                   onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                   onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
