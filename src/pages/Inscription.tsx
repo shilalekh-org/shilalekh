@@ -170,7 +170,7 @@ export default function Inscription() {
     const currentVal = isPhotoEdit ? null : (inscription?.[editField] ?? null)
     const { error } = await supabase.from('edit_requests').insert({
       inscription_id: inscription.id, submitted_by: editUser.id,
-      field_name: 'photos', current_value: currentVal ? String(currentVal) : null,
+      field_name: isPhotoEdit ? 'photos' : (editField || 'general'), current_value: currentVal ? String(currentVal) : null,
       suggested_value: suggestedValue, justification: editJustify.trim(),
     })
     setEditSubmitting(false)
