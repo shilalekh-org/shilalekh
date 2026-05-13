@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface AvatarDef {
   id: string
   name: string

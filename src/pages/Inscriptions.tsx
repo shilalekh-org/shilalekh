@@ -5,7 +5,7 @@ import Nav from '../components/Nav'
 import { useTheme } from '../theme'
 import { useBookmarks } from '../lib/useBookmarks'
 
-function BookmarkBtn({ inscriptionId, bookmarked, isLoggedIn, onToggle }: { inscriptionId: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
+function BookmarkBtn({ bookmarked, isLoggedIn, onToggle }: { inscriptionId?: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
   return (
     <button onClick={onToggle}
       title={isLoggedIn ? (bookmarked ? 'Remove bookmark' : 'Bookmark') : 'Sign in to bookmark'}

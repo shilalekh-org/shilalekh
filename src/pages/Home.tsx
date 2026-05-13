@@ -41,7 +41,7 @@ const LAYERS: { id: LayerType; label: string; url: string; attribution: string }
   { id: 'satellite', label: 'Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '© <a href="https://www.esri.com">Esri</a>' },
 ]
 
-function BookmarkBtn({ inscriptionId, bookmarked, isLoggedIn, onToggle }: { inscriptionId: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
+function BookmarkBtn({ bookmarked, isLoggedIn, onToggle }: { inscriptionId?: number; bookmarked: boolean; isLoggedIn: boolean; onToggle: (e: React.MouseEvent) => void }) {
   return (
     <button
       onClick={onToggle}
