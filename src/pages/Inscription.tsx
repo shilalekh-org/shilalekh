@@ -97,7 +97,7 @@ export default function Inscription() {
   const [editMsg,        setEditMsg]        = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editUser,       setEditUser]       = useState<any>(null)
   const [isPhotoEdit,    setIsPhotoEdit]    = useState(false)
-  const [photoUploading, setPhotoUploading] = useState(false)
+  const [, setPhotoUploading] = useState(false)
   const [photoFile,      setPhotoFile]      = useState<File | null>(null)
   const [photoPreview,   setPhotoPreview]   = useState<string | null>(null)
 
