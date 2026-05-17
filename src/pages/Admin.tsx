@@ -57,6 +57,7 @@ export default function Admin() {
   const [inscriptions, setInscriptions] = useState<Inscription[]>([])
   const [editRequests, setEditRequests] = useState<EditRequest[]>([])
   const [activeTab, setActiveTab]       = useState<ActiveTab>('pending')
+  const [editStatusFilter, setEditStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [expandedId, setExpandedId]     = useState<string | null>(null)
   const [rejectionReasons, setRejectionReasons]   = useState<Record<string, string>>({})
   const [moreInfoMessages, setMoreInfoMessages]   = useState<Record<string, string>>({})
@@ -463,24 +464,26 @@ export default function Admin() {
         {/* ══ EDIT REQUESTS TAB ════════════════════════════════════════════════ */}
         {activeTab === 'edits' && (
           <>
-            {/* Sub-status counts */}
+            {/* Sub-status filter pills */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
               {(['pending', 'approved', 'rejected'] as const).map(s => {
                 const count = editRequests.filter(r => r.status === s).length
                 const colors: Record<string, string> = { pending: c.orange, approved: c.gold, rejected: c.textDim }
+                const active = editStatusFilter === s
                 return (
-                  <span key={s} style={{ fontSize: '10px', color: colors[s], padding: '3px 12px', border: `0.5px solid ${colors[s]}`, borderRadius: '99px', fontFamily: 'Arial, sans-serif', opacity: 0.8 }}>
+                  <span key={s} onClick={() => setEditStatusFilter(s)}
+                    style={{ fontSize: '10px', color: colors[s], padding: '3px 12px', border: `0.5px solid ${colors[s]}`, borderRadius: '99px', fontFamily: 'Arial, sans-serif', cursor: 'pointer', opacity: active ? 1 : 0.4, background: active ? `${colors[s]}15` : 'transparent', transition: 'opacity 0.15s' }}>
                     {s.toUpperCase()} ({count})
                   </span>
                 )
               })}
             </div>
 
-            {editRequests.length === 0 ? (
+            {editRequests.filter(r => r.status === editStatusFilter).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>NO EDIT REQUESTS</p>
+                <p style={{ fontSize: '12px', color: c.textDim, letterSpacing: '.1em' }}>NO {editStatusFilter.toUpperCase()} EDIT REQUESTS</p>
               </div>
-            ) : editRequests.map(req => (
+            ) : editRequests.filter(r => r.status === editStatusFilter).map(req => (
               <div key={req.id} style={{ background: c.bgCard, border: `0.5px solid ${req.status === 'pending' ? c.border : req.status === 'approved' ? c.gold : c.textDim}`, borderRadius: '8px', marginBottom: '12px', padding: '20px' }}>
 
                 {/* Header */}
