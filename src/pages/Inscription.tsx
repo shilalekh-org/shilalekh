@@ -22,6 +22,9 @@ const EDITABLE_FIELDS = [
 ]
 const FIELD_MAP = Object.fromEntries(EDITABLE_FIELDS.map(f => [f.key, f.label]))
 
+// Fields where content is multi-line / line-numbered
+const LINE_NUMBERED_FIELDS = ['actual_text', 'transliteration']
+
 // ─── Pencil icon ──────────────────────────────────────────────────────────────
 function PencilBtn({ onClick, color }: { onClick: () => void; color: string }) {
   const [hovered, setHovered] = useState(false)
@@ -38,7 +41,7 @@ function PencilBtn({ onClick, color }: { onClick: () => void; color: string }) {
   )
 }
 
-// ─── Line-numbered text ───────────────────────────────────────────────────────
+// ─── Line-numbered display (read-only) ───────────────────────────────────────
 function LineNumberedText({ text, fontSize = '15px', italic = false, c }: { text: string; fontSize?: string; italic?: boolean; c: any }) {
   const lines = text.split('\n').filter(l => l.trim() !== '')
   if (lines.length === 0) return null
@@ -50,6 +53,51 @@ function LineNumberedText({ text, fontSize = '15px', italic = false, c }: { text
           <span style={{ fontSize, color: c.text, lineHeight: 1.8, fontStyle: italic ? 'italic' : 'normal', flex: 1 }}>{line}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Line-numbered textarea (editable) ───────────────────────────────────────
+function LineNumberedTextarea({ value, onChange, placeholder, c }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; c: any
+}) {
+  const LINE_HEIGHT = 26 // px — must match textarea line-height below
+  const PADDING_TOP = 10 // px — must match textarea padding-top below
+
+  const lines = value.split('\n')
+  const lineCount = Math.max(lines.length, 4)
+
+  return (
+    <div style={{ display: 'flex', border: `0.5px solid ${c.border}`, borderRadius: '4px', overflow: 'hidden', background: c.bg }}>
+      {/* Line-number gutter */}
+      <div style={{
+        background: c.bgCard, borderRight: `0.5px solid ${c.borderLight}`,
+        padding: `${PADDING_TOP}px 10px`, minWidth: '36px',
+        display: 'flex', flexDirection: 'column',
+        userSelect: 'none' as const, pointerEvents: 'none' as const, flexShrink: 0,
+      }}>
+        {Array.from({ length: lineCount }, (_, i) => (
+          <div key={i} style={{
+            fontSize: '10px', color: c.textFaint, fontFamily: 'Arial, sans-serif',
+            lineHeight: `${LINE_HEIGHT}px`, textAlign: 'right', height: `${LINE_HEIGHT}px`,
+          }}>{i + 1}</div>
+        ))}
+      </div>
+      {/* Textarea */}
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          flex: 1, background: 'transparent', border: 'none', outline: 'none',
+          padding: `${PADDING_TOP}px 14px`,
+          color: c.text, fontSize: '13px', fontFamily: 'Georgia, serif',
+          lineHeight: `${LINE_HEIGHT}px`,
+          resize: 'vertical' as const,
+          minHeight: `${PADDING_TOP * 2 + LINE_HEIGHT * 4}px`,
+          boxSizing: 'border-box' as const,
+        }}
+      />
     </div>
   )
 }
@@ -142,7 +190,8 @@ export default function Inscription() {
 
   const openEdit = (fieldKey: string, photo = false) => {
     if (!isLoggedIn) { navigate('/signin'); return }
-    setIsPhotoEdit(photo); setEditField(photo ? 'photos' : fieldKey)
+    setIsPhotoEdit(photo)
+    setEditField(photo ? 'photos' : fieldKey)
     setEditSuggested(''); setEditJustify(''); setEditMsg(null); setPhotoFile(null); setPhotoPreview(null); setEditOpen(true)
   }
 
@@ -170,12 +219,18 @@ export default function Inscription() {
     const currentVal = isPhotoEdit ? null : (inscription?.[editField] ?? null)
     const { error } = await supabase.from('edit_requests').insert({
       inscription_id: inscription.id, submitted_by: editUser.id,
-      field_name: isPhotoEdit ? 'photos' : (editField || 'general'), current_value: currentVal ? String(currentVal) : null,
+      field_name: isPhotoEdit ? 'photos' : (editField || 'general'),
+      current_value: currentVal ? String(currentVal) : null,
       suggested_value: suggestedValue, justification: editJustify.trim(),
     })
     setEditSubmitting(false)
     if (error) setEditMsg({ type: 'error', text: error.message })
-    else setEditMsg({ type: 'success', text: 'Thank you — your photo has been submitted for review.' })
+    else {
+      const successText = isPhotoEdit
+        ? 'Thank you — your photo has been submitted for review.'
+        : 'Thank you — your suggestion has been submitted for review.'
+      setEditMsg({ type: 'success', text: successText })
+    }
   }
 
   const shortId = (uuid: string) => uuid.replace(/-/g, '').slice(0, 8)
@@ -227,6 +282,9 @@ export default function Inscription() {
     letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s',
   })
 
+  // Whether the current edit field uses line-numbered textarea
+  const isLineNumberedField = LINE_NUMBERED_FIELDS.includes(editField)
+
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
       <Nav />
@@ -245,7 +303,7 @@ export default function Inscription() {
       {/* ── Suggest-edit modal ── */}
       {editOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '32px', maxWidth: '540px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '32px', maxWidth: '560px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
               <div>
                 <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, marginBottom: '4px', fontFamily: 'Arial, sans-serif' }}>SUGGEST AN EDIT</p>
@@ -267,7 +325,7 @@ export default function Inscription() {
 
             {editMsg?.type !== 'success' && (
               <>
-                {/* Field selector when no field pre-selected */}
+                {/* Field selector — shown only when opened via generic SUGGEST EDIT button */}
                 {!isPhotoEdit && !editField && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>FIELD TO CORRECT *</p>
@@ -278,13 +336,23 @@ export default function Inscription() {
                     </select>
                   </div>
                 )}
-                {/* Current value */}
+
+                {/* Current value (read-only preview) */}
                 {!isPhotoEdit && editField && inscription[editField] && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>CURRENT VALUE</p>
-                    <div style={{ ...inputStyle, color: c.textDim, opacity: 0.75, lineHeight: 1.6, borderStyle: 'dashed', minHeight: '40px' }}>{inscription[editField]}</div>
+                    {isLineNumberedField ? (
+                      // Show current value with line numbers for multi-line fields
+                      <div style={{ border: `0.5px dashed ${c.border}`, borderRadius: '4px', overflow: 'hidden', opacity: 0.75 }}>
+                        <LineNumberedText text={inscription[editField]} fontSize="13px" c={c} />
+                      </div>
+                    ) : (
+                      <div style={{ ...inputStyle, color: c.textDim, opacity: 0.75, lineHeight: 1.6, borderStyle: 'dashed', minHeight: '40px' }}>{inscription[editField]}</div>
+                    )}
                   </div>
                 )}
+
+                {/* Suggested value input */}
                 {isPhotoEdit ? (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>PHOTO *</p>
@@ -311,11 +379,32 @@ export default function Inscription() {
                 ) : (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE *</p>
-                    <textarea value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
-                      placeholder="Enter the corrected value…"
-                      rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                    {isLineNumberedField ? (
+                      // Line-numbered textarea for actual_text and transliteration
+                      <>
+                        <LineNumberedTextarea
+                          value={editSuggested}
+                          onChange={setEditSuggested}
+                          placeholder={editField === 'actual_text'
+                            ? 'Each line here = one physical line carved on the stone. Press Enter for next line.'
+                            : 'Match line numbers to the original text. One line per stone line.'}
+                          c={c}
+                        />
+                        <p style={{ fontSize: '10px', color: c.textFaint, marginTop: '6px', fontFamily: 'Arial, sans-serif' }}>
+                          {editField === 'actual_text'
+                            ? 'Each line here = one physical line carved on the stone. Press Enter to go to the next line.'
+                            : 'Match line numbers to the original text above. One line per stone line.'}
+                        </p>
+                      </>
+                    ) : (
+                      <textarea value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
+                        placeholder="Enter the corrected value…"
+                        rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
+                    )}
                   </div>
                 )}
+
+                {/* Justification */}
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>JUSTIFICATION & SOURCE *</p>
                   <textarea value={editJustify} onChange={e => setEditJustify(e.target.value)}
@@ -323,6 +412,7 @@ export default function Inscription() {
                     rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
                   <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '6px', lineHeight: 1.5 }}>All suggestions are reviewed by Shilalekh editors before any changes are applied.</p>
                 </div>
+
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={submitEdit} disabled={editSubmitting}
                     style={{ background: c.gold, border: 'none', color: '#0a0a0a', padding: '11px 24px', borderRadius: '4px', fontSize: '11px', letterSpacing: '.1em', cursor: editSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: editSubmitting ? 0.6 : 1 }}>
@@ -344,10 +434,10 @@ export default function Inscription() {
 
         {/* Tags */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          {displayType        && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em' }}>{displayType.toUpperCase()}</span>}
+          {displayType         && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.gold}`, color: c.gold, borderRadius: '99px', letterSpacing: '.05em' }}>{displayType.toUpperCase()}</span>}
           {inscription.state_province && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.state_province.toUpperCase()}</span>}
-          {inscription.year   && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.year}</span>}
-          {inscription.script && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.script.toUpperCase()}</span>}
+          {inscription.year    && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.year}</span>}
+          {inscription.script  && <span style={{ fontSize: '10px', padding: '3px 10px', border: `0.5px solid ${c.border}`, color: c.textDim, borderRadius: '99px', letterSpacing: '.05em' }}>{inscription.script.toUpperCase()}</span>}
         </div>
 
         {/* Title */}
@@ -381,7 +471,7 @@ export default function Inscription() {
           </button>
         </div>
 
-        {/* ── PHOTOS — always visible ── */}
+        {/* ── PHOTOS ── */}
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <p style={{ fontSize: '10px', letterSpacing: '.2em', color: c.orange, fontFamily: 'Arial, sans-serif', margin: 0 }}>PHOTOGRAPHS</p>
@@ -417,7 +507,7 @@ export default function Inscription() {
           )}
         </div>
 
-        {/* ── SHORT DESCRIPTION — always visible ── */}
+        {/* ── SHORT DESCRIPTION ── */}
         {inscription.short_description && (
           <div style={{ background: c.bgCard, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '20px 24px', marginBottom: '28px' }}>
             <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '10px', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center' }}>
@@ -431,28 +521,24 @@ export default function Inscription() {
         {/* ── ACCORDION ── */}
         <div style={{ marginBottom: '24px' }}>
 
-          {/* READ */}
           {inscription.actual_text && (
             <AccordionSection label="READ" defaultOpen={true} onEdit={() => openEdit('actual_text')} c={c}>
               <LineNumberedText text={inscription.actual_text} fontSize="16px" c={c} />
             </AccordionSection>
           )}
 
-          {/* TRANSLITERATION */}
           {inscription.transliteration && (
             <AccordionSection label="TRANSLITERATION" onEdit={() => openEdit('transliteration')} c={c}>
               <LineNumberedText text={inscription.transliteration} fontSize="14px" italic={true} c={c} />
             </AccordionSection>
           )}
 
-          {/* TRANSLATION */}
           {inscription.translation_english && (
             <AccordionSection label="TRANSLATION" onEdit={() => openEdit('translation_english')} c={c}>
               <p style={{ fontSize: '14px', color: c.text, lineHeight: 1.9, margin: 0 }}>{inscription.translation_english}</p>
             </AccordionSection>
           )}
 
-          {/* DETAILS */}
           <AccordionSection label="DETAILS" c={c}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               {metaFields.map((f, i) => (
