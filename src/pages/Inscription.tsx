@@ -19,6 +19,7 @@ const EDITABLE_FIELDS = [
   { key: 'state_province',       label: 'State / Province' },
   { key: 'current_location',     label: 'Location' },
   { key: 'in_situ',              label: 'In Situ' },
+  { key: 'coordinates',          label: 'Coordinates (Lat / Lng)' },
   { key: 'height_cm',            label: 'Height (cm)' },
   { key: 'width_cm',             label: 'Width (cm)' },
   { key: 'depth_cm',             label: 'Depth (cm)' },
@@ -38,6 +39,8 @@ const LINE_NUMBERED_FIELDS = ['actual_text', 'transliteration']
 const BOOLEAN_FIELDS = ['in_situ']
 // Fields that require a numeric input
 const NUMERIC_FIELDS = ['height_cm', 'width_cm', 'depth_cm']
+// Coordinate compound field
+const COORDINATE_FIELDS = ['coordinates']
 
 // ─── Pencil icon ──────────────────────────────────────────────────────────────
 function PencilBtn({ onClick, color }: { onClick: () => void; color: string }) {
@@ -75,15 +78,14 @@ function LineNumberedText({ text, fontSize = '15px', italic = false, c }: { text
 function LineNumberedTextarea({ value, onChange, placeholder, c }: {
   value: string; onChange: (v: string) => void; placeholder?: string; c: any
 }) {
-  const LINE_HEIGHT = 26 // px — must match textarea line-height below
-  const PADDING_TOP = 10 // px — must match textarea padding-top below
+  const LINE_HEIGHT = 26
+  const PADDING_TOP = 10
 
   const lines = value.split('\n')
   const lineCount = Math.max(lines.length, 4)
 
   return (
     <div style={{ display: 'flex', border: `0.5px solid ${c.border}`, borderRadius: '4px', overflow: 'hidden', background: c.bg }}>
-      {/* Line-number gutter */}
       <div style={{
         background: c.bgCard, borderRight: `0.5px solid ${c.borderLight}`,
         padding: `${PADDING_TOP}px 10px`, minWidth: '36px',
@@ -97,7 +99,6 @@ function LineNumberedTextarea({ value, onChange, placeholder, c }: {
           }}>{i + 1}</div>
         ))}
       </div>
-      {/* Textarea */}
       <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -147,6 +148,7 @@ export default function Inscription() {
   const [loading, setLoading]                       = useState(true)
   const [lightboxIndex, setLightboxIndex]           = useState<number | null>(null)
   const [copied, setCopied]                         = useState(false)
+  const [coordsCopied, setCoordsCopied]             = useState(false)
   const [contributorHandle, setContributorHandle]   = useState<string | null>(null)
   const [contributorAnonymous, setContributorAnonymous] = useState(false)
 
@@ -162,6 +164,10 @@ export default function Inscription() {
   const [, setPhotoUploading] = useState(false)
   const [photoFile,      setPhotoFile]      = useState<File | null>(null)
   const [photoPreview,   setPhotoPreview]   = useState<string | null>(null)
+
+  // Coordinate editing state
+  const [editLat, setEditLat] = useState('')
+  const [editLng, setEditLng] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -199,6 +205,13 @@ export default function Inscription() {
     else { const el = document.createElement('textarea'); el.value = url; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); setCopied(true); setTimeout(() => setCopied(false), 2500) }
   }
 
+  const handleCopyCoords = () => {
+    if (inscription?.latitude == null || inscription?.longitude == null) return
+    const coordStr = `${inscription.latitude}, ${inscription.longitude}`
+    if (navigator.clipboard) navigator.clipboard.writeText(coordStr).then(() => { setCoordsCopied(true); setTimeout(() => setCoordsCopied(false), 2500) })
+    else { const el = document.createElement('textarea'); el.value = coordStr; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); setCoordsCopied(true); setTimeout(() => setCoordsCopied(false), 2500) }
+  }
+
   const handleBookmark = () => { if (!isLoggedIn) { navigate('/signin'); return }; if (inscription?.id) toggle(inscription.id) }
   const isBookmarked = inscription ? bookmarked.has(inscription.id) : false
 
@@ -206,18 +219,42 @@ export default function Inscription() {
     if (!isLoggedIn) { navigate('/signin'); return }
     setIsPhotoEdit(photo)
     setEditField(photo ? 'photos' : fieldKey)
-    setEditSuggested(''); setEditJustify(''); setEditMsg(null); setPhotoFile(null); setPhotoPreview(null); setEditOpen(true)
+    setEditSuggested('')
+    setEditJustify('')
+    setEditMsg(null)
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    // Pre-populate lat/lng fields if editing coordinates
+    if (fieldKey === 'coordinates') {
+      setEditLat(inscription?.latitude != null ? String(inscription.latitude) : '')
+      setEditLng(inscription?.longitude != null ? String(inscription.longitude) : '')
+    }
+    setEditOpen(true)
   }
 
   const submitEdit = async () => {
     setEditMsg(null)
+    const isCoordinateField = COORDINATE_FIELDS.includes(editField)
+
     if (!isPhotoEdit && !editField) { setEditMsg({ type: 'error', text: 'Please select a field to correct.' }); return }
     if (isPhotoEdit && !photoFile)  { setEditMsg({ type: 'error', text: 'Please select a photo to upload.' }); return }
-    if (!isPhotoEdit && !editSuggested.trim()) { setEditMsg({ type: 'error', text: 'Please enter a suggested value.' }); return }
+
+    if (isCoordinateField) {
+      const latNum = parseFloat(editLat)
+      const lngNum = parseFloat(editLng)
+      if (!editLat.trim() && !editLng.trim()) { setEditMsg({ type: 'error', text: 'Please enter at least a latitude or longitude.' }); return }
+      if (editLat.trim() && (isNaN(latNum) || latNum < -90 || latNum > 90)) { setEditMsg({ type: 'error', text: 'Latitude must be a number between -90 and 90.' }); return }
+      if (editLng.trim() && (isNaN(lngNum) || lngNum < -180 || lngNum > 180)) { setEditMsg({ type: 'error', text: 'Longitude must be a number between -180 and 180.' }); return }
+    } else if (!isPhotoEdit && !editSuggested.trim()) {
+      setEditMsg({ type: 'error', text: 'Please enter a suggested value.' }); return
+    }
+
     if (!editJustify.trim()) { setEditMsg({ type: 'error', text: 'Please provide a justification or source.' }); return }
     if (!editUser) { navigate('/signin'); return }
+
     setEditSubmitting(true)
     let suggestedValue = editSuggested.trim()
+
     if (isPhotoEdit && photoFile) {
       setPhotoUploading(true)
       const ext  = photoFile.name.split('.').pop()
@@ -229,8 +266,20 @@ export default function Inscription() {
       if (uploadErr) { setEditSubmitting(false); setEditMsg({ type: 'error', text: `Upload failed: ${uploadErr.message}` }); return }
       const { data: urlData } = supabase.storage.from('inscription-photos').getPublicUrl(path)
       suggestedValue = urlData.publicUrl
+    } else if (isCoordinateField) {
+      const latNum = editLat.trim() ? parseFloat(editLat) : null
+      const lngNum = editLng.trim() ? parseFloat(editLng) : null
+      suggestedValue = `LAT: ${latNum ?? 'unchanged'}, LNG: ${lngNum ?? 'unchanged'}`
     }
-    const currentVal = isPhotoEdit ? null : (inscription?.[editField] ?? null)
+
+    const currentVal = isPhotoEdit
+      ? null
+      : isCoordinateField
+        ? (inscription?.latitude != null && inscription?.longitude != null
+            ? `LAT: ${inscription.latitude}, LNG: ${inscription.longitude}`
+            : null)
+        : (inscription?.[editField] ?? null)
+
     const { error } = await supabase.from('edit_requests').insert({
       inscription_id: inscription.id, submitted_by: editUser.id,
       field_name: isPhotoEdit ? 'photos' : (editField || 'general'),
@@ -266,6 +315,9 @@ export default function Inscription() {
   const displayType      = inscription.material_type || inscription.type
   const displayPurpose   = inscription.purpose_category || inscription.purpose
 
+  const hasCoords = inscription.latitude != null && inscription.longitude != null
+  const mapsUrl   = hasCoords ? `https://www.google.com/maps?q=${inscription.latitude},${inscription.longitude}` : null
+
   const inputStyle = { width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '13px', fontFamily: 'Georgia, serif', outline: 'none', boxSizing: 'border-box' as const }
 
   const metaFields = [
@@ -300,6 +352,7 @@ export default function Inscription() {
   const isLineNumberedField = LINE_NUMBERED_FIELDS.includes(editField)
   const isBooleanField      = BOOLEAN_FIELDS.includes(editField)
   const isNumericField      = NUMERIC_FIELDS.includes(editField)
+  const isCoordinateField   = COORDINATE_FIELDS.includes(editField)
 
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
@@ -345,7 +398,14 @@ export default function Inscription() {
                 {!isPhotoEdit && !editField && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>FIELD TO CORRECT *</p>
-                    <select value={editField} onChange={e => setEditField(e.target.value)}
+                    <select value={editField} onChange={e => {
+                      const val = e.target.value
+                      setEditField(val)
+                      if (val === 'coordinates') {
+                        setEditLat(inscription?.latitude != null ? String(inscription.latitude) : '')
+                        setEditLng(inscription?.longitude != null ? String(inscription.longitude) : '')
+                      }
+                    }}
                       style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px' }}>
                       <option value="">Select a field…</option>
                       {EDITABLE_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -354,11 +414,10 @@ export default function Inscription() {
                 )}
 
                 {/* Current value (read-only preview) */}
-                {!isPhotoEdit && editField && inscription[editField] && (
+                {!isPhotoEdit && editField && !isCoordinateField && inscription[editField] && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>CURRENT VALUE</p>
                     {isLineNumberedField ? (
-                      // Show current value with line numbers for multi-line fields
                       <div style={{ border: `0.5px dashed ${c.border}`, borderRadius: '4px', overflow: 'hidden', opacity: 0.75 }}>
                         <LineNumberedText text={inscription[editField]} fontSize="13px" c={c} />
                       </div>
@@ -368,35 +427,68 @@ export default function Inscription() {
                   </div>
                 )}
 
-                {/* Suggested value input */}
-                {isPhotoEdit ? (
+                {/* ── COORDINATE FIELD ── */}
+                {isCoordinateField && (
                   <div style={{ marginBottom: '14px' }}>
-                    <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>PHOTO *</p>
-                    <label style={{ display: 'block', border: `1px dashed ${c.border}`, borderRadius: '6px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: c.bg }}>
-                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
-                        onChange={e => {
-                          const file = e.target.files?.[0] || null
-                          setPhotoFile(file)
-                          setPhotoPreview(file ? URL.createObjectURL(file) : null)
-                        }} />
-                      {photoPreview ? (
-                        <img src={photoPreview} style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '4px', display: 'block', margin: '0 auto 8px' }} />
-                      ) : (
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c.textFaint} strokeWidth="1.2" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}>
-                          <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M3 16l5-5 4 4 3-3 6 6"/>
-                        </svg>
-                      )}
-                      <p style={{ fontSize: '12px', color: c.textDim, margin: 0 }}>
-                        {photoFile ? photoFile.name : 'Click to select a photo (JPEG, PNG, WebP)'}
-                      </p>
-                      {photoFile && <p style={{ fontSize: '11px', color: c.textFaint, margin: '4px 0 0' }}>Click to change</p>}
-                    </label>
+                    {/* Current value preview */}
+                    {hasCoords && (
+                      <div style={{ marginBottom: '14px' }}>
+                        <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>CURRENT VALUE</p>
+                        <div style={{ ...inputStyle, color: c.textDim, opacity: 0.75, lineHeight: 1.6, borderStyle: 'dashed', fontFamily: '"Courier New", Courier, monospace', fontSize: '12px' }}>
+                          {inscription.latitude}° N, {inscription.longitude}° E
+                        </div>
+                      </div>
+                    )}
+                    <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '10px', fontFamily: 'Arial, sans-serif' }}>CORRECTED COORDINATES *</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                      <div>
+                        <p style={{ fontSize: '10px', color: c.textFaint, fontFamily: 'Arial, sans-serif', marginBottom: '5px', letterSpacing: '.08em' }}>LATITUDE</p>
+                        <input
+                          type="number" step="any" min="-90" max="90"
+                          placeholder="e.g. 18.2637"
+                          value={editLat}
+                          onChange={e => setEditLat(e.target.value)}
+                          style={{ ...inputStyle, fontFamily: '"Courier New", Courier, monospace' }}
+                        />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '10px', color: c.textFaint, fontFamily: 'Arial, sans-serif', marginBottom: '5px', letterSpacing: '.08em' }}>LONGITUDE</p>
+                        <input
+                          type="number" step="any" min="-180" max="180"
+                          placeholder="e.g. 73.4403"
+                          value={editLng}
+                          onChange={e => setEditLng(e.target.value)}
+                          style={{ ...inputStyle, fontFamily: '"Courier New", Courier, monospace' }}
+                        />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '10px', color: c.textFaint, fontFamily: 'Arial, sans-serif', lineHeight: 1.6, marginBottom: '4px' }}>
+                      Enter decimal degrees (e.g. 18.2637, not 18° 15′ 49″). You only need to fill in the field(s) you are correcting.
+                    </p>
+                    {hasCoords && mapsUrl && (
+                      <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: '10px', color: c.gold, fontFamily: 'Arial, sans-serif', letterSpacing: '.05em', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+                        VIEW CURRENT PIN ON GOOGLE MAPS ↗
+                      </a>
+                    )}
+                    {!hasCoords && (
+                      <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: '10px', color: c.gold, fontFamily: 'Arial, sans-serif', letterSpacing: '.05em', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+                        FIND COORDINATES ON GOOGLE MAPS ↗
+                      </a>
+                    )}
                   </div>
-                ) : (
+                )}
+
+                {/* Suggested value input — all non-coordinate, non-photo fields */}
+                {!isPhotoEdit && !isCoordinateField && (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE *</p>
                     {isBooleanField ? (
-                      // Yes / No dropdown for boolean fields like in_situ
                       <select value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
                         style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px' }}>
                         <option value="">Select…</option>
@@ -404,7 +496,6 @@ export default function Inscription() {
                         <option value="No">No — inscription has been moved</option>
                       </select>
                     ) : isNumericField ? (
-                      // Number input for dimension fields
                       <>
                         <input type="number" min="0" step="0.1"
                           value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
@@ -413,7 +504,6 @@ export default function Inscription() {
                         <p style={{ fontSize: '10px', color: c.textFaint, marginTop: '4px', fontFamily: 'Arial, sans-serif' }}>Enter the measurement in centimetres (e.g. 45 or 45.5)</p>
                       </>
                     ) : isLineNumberedField ? (
-                      // Line-numbered textarea for actual_text and transliteration
                       <>
                         <LineNumberedTextarea
                           value={editSuggested}
@@ -437,11 +527,39 @@ export default function Inscription() {
                   </div>
                 )}
 
+                {/* Photo upload */}
+                {isPhotoEdit && (
+                  <div style={{ marginBottom: '14px' }}>
+                    <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>PHOTO *</p>
+                    <label style={{ display: 'block', border: `1px dashed ${c.border}`, borderRadius: '6px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: c.bg }}>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0] || null
+                          setPhotoFile(file)
+                          setPhotoPreview(file ? URL.createObjectURL(file) : null)
+                        }} />
+                      {photoPreview ? (
+                        <img src={photoPreview} style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '4px', display: 'block', margin: '0 auto 8px' }} />
+                      ) : (
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={c.textFaint} strokeWidth="1.2" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}>
+                          <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M3 16l5-5 4 4 3-3 6 6"/>
+                        </svg>
+                      )}
+                      <p style={{ fontSize: '12px', color: c.textDim, margin: 0 }}>
+                        {photoFile ? photoFile.name : 'Click to select a photo (JPEG, PNG, WebP)'}
+                      </p>
+                      {photoFile && <p style={{ fontSize: '11px', color: c.textFaint, margin: '4px 0 0' }}>Click to change</p>}
+                    </label>
+                  </div>
+                )}
+
                 {/* Justification */}
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>JUSTIFICATION & SOURCE *</p>
                   <textarea value={editJustify} onChange={e => setEditJustify(e.target.value)}
-                    placeholder="Cite your source or explain the reasoning for this correction…"
+                    placeholder={isCoordinateField
+                      ? 'How did you determine the correct coordinates? (e.g. visited the site, cross-referenced ASI map, Google Maps verification)'
+                      : 'Cite your source or explain the reasoning for this correction…'}
                     rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
                   <p style={{ fontSize: '11px', color: c.textFaint, marginTop: '6px', lineHeight: 1.5 }}>All suggestions are reviewed by Shilalekh editors before any changes are applied.</p>
                 </div>
@@ -573,7 +691,8 @@ export default function Inscription() {
           )}
 
           <AccordionSection label="DETAILS" c={c}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+            {/* ── Metadata grid ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               {metaFields.map((f, i) => (
                 <div key={i} style={{ background: c.bgCard, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '10px 14px' }}>
                   <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '4px', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center', margin: '0 0 4px' }}>
@@ -585,6 +704,53 @@ export default function Inscription() {
               ))}
             </div>
 
+            {/* ── Coordinates card — full width ── */}
+            {(inscription.latitude != null || inscription.longitude != null) ? (
+              <div style={{ background: c.bgCard, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '10px 14px', marginBottom: '10px' }}>
+                <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center', margin: '0 0 6px' }}>
+                  COORDINATES
+                  <PencilBtn color={c.orange} onClick={() => openEdit('coordinates')} />
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '13px', color: c.text, fontFamily: '"Courier New", Courier, monospace', fontWeight: 300 }}>
+                    {inscription.latitude != null ? `${inscription.latitude}° N` : '—'}{' '}
+                    {inscription.longitude != null ? `, ${inscription.longitude}° E` : ''}
+                  </span>
+                  <button onClick={handleCopyCoords}
+                    style={{ background: 'transparent', border: `0.5px solid ${coordsCopied ? c.gold : c.borderLight}`, color: coordsCopied ? c.gold : c.textDim, padding: '3px 10px', borderRadius: '4px', fontSize: '9px', letterSpacing: '.08em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onMouseEnter={e => { if (!coordsCopied) { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold } }}
+                    onMouseLeave={e => { if (!coordsCopied) { e.currentTarget.style.borderColor = c.borderLight; e.currentTarget.style.color = c.textDim } }}>
+                    {coordsCopied ? '✓ COPIED' : '⎘ COPY'}
+                  </button>
+                  {mapsUrl && (
+                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: '9px', color: c.textDim, fontFamily: 'Arial, sans-serif', letterSpacing: '.08em', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px', border: `0.5px solid ${c.borderLight}`, padding: '3px 10px', borderRadius: '4px', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = c.gold; e.currentTarget.style.color = c.gold }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = c.borderLight; e.currentTarget.style.color = c.textDim }}>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      OPEN IN MAPS ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* No coordinates yet — show an empty state with invite to add them */
+              <div style={{ background: c.bgCard, border: `0.5px dashed ${c.borderLight}`, borderRadius: '6px', padding: '10px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textFaint, fontFamily: 'Arial, sans-serif', margin: 0 }}>
+                  COORDINATES — NOT YET RECORDED
+                </p>
+                {isLoggedIn && (
+                  <button onClick={() => openEdit('coordinates')}
+                    style={{ background: 'transparent', border: `0.5px solid ${c.borderLight}`, color: c.textDim, padding: '3px 10px', borderRadius: '4px', fontSize: '9px', letterSpacing: '.08em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = c.orange; e.currentTarget.style.color = c.orange }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = c.borderLight; e.currentTarget.style.color = c.textDim }}>
+                    + ADD COORDINATES
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Long-form fields ── */}
             {inscription.importance && (
               <div style={{ marginBottom: '18px' }}>
                 <p style={{ fontSize: '9px', letterSpacing: '.15em', color: c.textDim, marginBottom: '8px', fontFamily: 'Arial, sans-serif', display: 'flex', alignItems: 'center' }}>
