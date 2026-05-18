@@ -29,6 +29,7 @@ const FIELD_LABELS: Record<string, string> = {
   transliteration: 'Transliteration', translation_english: 'English Translation',
   importance: 'Importance', detailed_information: 'Detailed Information',
   photos: 'Photo Upload', general: 'General Edit',
+  coordinates: 'Coordinates (Lat / Lng)',
 }
 
 type Inscription = {
@@ -105,7 +106,6 @@ export default function Admin() {
       const admUsers = usersData as AdminUser[]
       setUsers(admUsers)
       setUsersFetched(true)
-      // Build UUID → user lookup for admin display (bypasses public anonymity)
       const map: Record<string, AdminUser> = {}
       admUsers.forEach(u => { map[u.id] = u })
       setUserMap(map)
@@ -197,6 +197,23 @@ export default function Admin() {
         .eq('id', req.inscription_id)
       insUpdateError = error
 
+    } else if (req.field_name === 'coordinates') {
+      // Coordinates edit: parse "LAT: 18.2637, LNG: 73.4403" and update both columns
+      const latMatch = req.suggested_value.match(/LAT:\s*([-\d.]+)/)
+      const lngMatch = req.suggested_value.match(/LNG:\s*([-\d.]+)/)
+      const updates: Record<string, number> = {}
+      if (latMatch) updates.latitude  = parseFloat(latMatch[1])
+      if (lngMatch) updates.longitude = parseFloat(lngMatch[1])
+      if (Object.keys(updates).length === 0) {
+        setMessage({ type: 'error', text: 'Could not parse coordinates from the suggested value. Please check the format.' })
+        setActionLoading(null); return
+      }
+      const { error } = await supabase
+        .from('inscriptions')
+        .update(updates)
+        .eq('id', req.inscription_id)
+      insUpdateError = error
+
     } else if (req.field_name === 'general' || !ALLOWED_FIELDS.includes(req.field_name)) {
       // Unknown or general field — cannot auto-apply
       setMessage({
@@ -206,7 +223,7 @@ export default function Admin() {
       setActionLoading(null); return
 
     } else {
-      // Coerce value type for boolean / numeric fields before saving
+      // Standard field: coerce value type for boolean / numeric fields before saving
       let updateValue: any = req.suggested_value
       if (BOOLEAN_FIELDS.includes(req.field_name)) {
         updateValue = req.suggested_value.toLowerCase() === 'yes' ? true : false
@@ -235,7 +252,9 @@ export default function Admin() {
     } else {
       const successMsg = req.field_name === 'photos'
         ? 'Photo approved and added to the inscription gallery.'
-        : `"${FIELD_LABELS[req.field_name] || req.field_name}" edit approved — inscription updated.`
+        : req.field_name === 'coordinates'
+          ? 'Coordinates approved — latitude and longitude updated on the inscription.'
+          : `"${FIELD_LABELS[req.field_name] || req.field_name}" edit approved — inscription updated.`
       setMessage({ type: 'success', text: successMsg })
       await fetchAll()
     }
@@ -295,15 +314,12 @@ export default function Admin() {
   }
 
   const shortId = (uuid: string) => uuid.replace(/-/g, '').slice(0, 8)
-  // Admin view: always show real identity (email + handle if set)
-  // is_anonymous is a PUBLIC display preference only — admin always sees the truth
   const editContributor = (req: EditRequest): { primary: string; secondary: string | null } => {
     const u = userMap[req.submitted_by]
     if (u) return {
       primary: u.email,
       secondary: u.handle ? `@${u.handle}` : null,
     }
-    // Fallback if users haven't loaded yet
     return {
       primary: shortId(req.submitted_by),
       secondary: null,
@@ -567,11 +583,11 @@ export default function Admin() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                     <div style={{ background: c.bg, border: `0.5px solid ${c.borderLight}`, borderRadius: '6px', padding: '12px 14px' }}>
                       <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>CURRENT VALUE</p>
-                      <p style={{ fontSize: '12px', color: c.textMuted, lineHeight: 1.6 }}>{req.current_value || <em style={{ opacity: 0.5 }}>Empty</em>}</p>
+                      <p style={{ fontSize: '12px', color: c.textMuted, lineHeight: 1.6, fontFamily: req.field_name === 'coordinates' ? '"Courier New", monospace' : 'inherit' }}>{req.current_value || <em style={{ opacity: 0.5 }}>Empty</em>}</p>
                     </div>
                     <div style={{ background: 'rgba(212,168,67,0.06)', border: `0.5px solid ${c.gold}`, borderRadius: '6px', padding: '12px 14px' }}>
                       <p style={{ fontSize: '9px', letterSpacing: '.12em', color: c.gold, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE</p>
-                      <p style={{ fontSize: '12px', color: c.text, lineHeight: 1.6 }}>{req.suggested_value}</p>
+                      <p style={{ fontSize: '12px', color: c.text, lineHeight: 1.6, fontFamily: req.field_name === 'coordinates' ? '"Courier New", monospace' : 'inherit' }}>{req.suggested_value}</p>
                     </div>
                   </div>
                 )}
@@ -598,7 +614,7 @@ export default function Admin() {
                       style={{ ...inputStyle, minHeight: '60px' }} />
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <ActionBtn
-                        label={actionLoading === `edit-${req.id}` ? 'SAVING…' : req.field_name === 'photos' ? 'APPROVE PHOTO' : 'APPROVE EDIT'}
+                        label={actionLoading === `edit-${req.id}` ? 'SAVING…' : req.field_name === 'photos' ? 'APPROVE PHOTO' : req.field_name === 'coordinates' ? 'APPROVE COORDINATES' : 'APPROVE EDIT'}
                         variant="gold" disabled={actionLoading === `edit-${req.id}`}
                         onClick={() => approveEdit(req)} />
                       <ActionBtn label={actionLoading === `edit-${req.id}` ? 'SAVING…' : 'REJECT'} variant="danger" disabled={actionLoading === `edit-${req.id}`} onClick={() => rejectEdit(req)} />
@@ -684,7 +700,6 @@ export default function Admin() {
 
                     {/* Meta */}
                     <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {/* Provider */}
                       <div style={{ textAlign: 'center' }}>
                         <span style={{
                           fontSize: '9px', letterSpacing: '.08em', fontFamily: 'Arial, sans-serif',
@@ -696,20 +711,14 @@ export default function Admin() {
                           {u.provider === 'google' ? 'GOOGLE' : 'EMAIL'}
                         </span>
                       </div>
-
-                      {/* Joined */}
                       <div style={{ textAlign: 'center', minWidth: '70px' }}>
                         <p style={{ fontSize: '9px', letterSpacing: '.1em', color: c.textFaint, marginBottom: '2px', fontFamily: 'Arial, sans-serif' }}>JOINED</p>
                         <p style={{ fontSize: '11px', color: c.textDim }}>{formatDate(u.created_at)}</p>
                       </div>
-
-                      {/* Last seen */}
                       <div style={{ textAlign: 'center', minWidth: '70px' }}>
                         <p style={{ fontSize: '9px', letterSpacing: '.1em', color: c.textFaint, marginBottom: '2px', fontFamily: 'Arial, sans-serif' }}>LAST SEEN</p>
                         <p style={{ fontSize: '11px', color: c.textDim }}>{formatRelative(u.last_sign_in_at)}</p>
                       </div>
-
-                      {/* Contributions */}
                       <div style={{ textAlign: 'center', minWidth: '60px' }}>
                         <p style={{ fontSize: '9px', letterSpacing: '.1em', color: c.textFaint, marginBottom: '2px', fontFamily: 'Arial, sans-serif' }}>ENTRIES</p>
                         <p style={{ fontSize: '18px', fontWeight: 300, color: u.contribution_count > 0 ? c.gold : c.textFaint }}>
