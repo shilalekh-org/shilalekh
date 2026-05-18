@@ -44,6 +44,7 @@ type EditRequest = {
   status: string; admin_note: string | null; reviewed_at: string | null
   created_at: string
   inscriptions: { id: number; shila_id: string; title: string } | null
+  profiles: { handle: string | null; is_anonymous: boolean } | null
 }
 
 type AdminUser = {
@@ -79,6 +80,7 @@ export default function Admin() {
   const [users, setUsers]             = useState<AdminUser[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [usersFetched, setUsersFetched] = useState(false)
+  const [userMap, setUserMap]         = useState<Record<string, AdminUser>>({})
   const [userSearch, setUserSearch]   = useState('')
 
   useEffect(() => {
@@ -90,14 +92,24 @@ export default function Admin() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [{ data: insData }, { data: editsData }] = await Promise.all([
+    const [{ data: insData }, { data: editsData }, { data: usersData }] = await Promise.all([
       supabase.from('inscriptions').select('*').order('created_at', { ascending: false }),
       supabase.from('edit_requests')
-        .select('*, inscriptions(id, shila_id, title)')
+        .select('*, inscriptions(id, shila_id, title), profiles(handle, is_anonymous)')
         .order('created_at', { ascending: false }),
+      supabase.rpc('get_admin_users'),
     ])
     if (insData)   setInscriptions(insData)
     if (editsData) setEditRequests(editsData as EditRequest[])
+    if (usersData) {
+      const admUsers = usersData as AdminUser[]
+      setUsers(admUsers)
+      setUsersFetched(true)
+      // Build UUID → user lookup for admin display (bypasses public anonymity)
+      const map: Record<string, AdminUser> = {}
+      admUsers.forEach(u => { map[u.id] = u })
+      setUserMap(map)
+    }
     setLoading(false)
   }
 
@@ -283,6 +295,20 @@ export default function Admin() {
   }
 
   const shortId = (uuid: string) => uuid.replace(/-/g, '').slice(0, 8)
+  // Admin view: always show real identity (email + handle if set)
+  // is_anonymous is a PUBLIC display preference only — admin always sees the truth
+  const editContributor = (req: EditRequest): { primary: string; secondary: string | null } => {
+    const u = userMap[req.submitted_by]
+    if (u) return {
+      primary: u.email,
+      secondary: u.handle ? `@${u.handle}` : null,
+    }
+    // Fallback if users haven't loaded yet
+    return {
+      primary: req.profiles?.handle ? `@${req.profiles.handle}` : shortId(req.submitted_by),
+      secondary: null,
+    }
+  }
   const displayType = (ins: Inscription) => ins.material_type || ins.type
 
   // ── Styles ────────────────────────────────────────────────────────────────
@@ -512,7 +538,13 @@ export default function Admin() {
                     <p style={{ fontSize: '10px', color: c.textDim, fontFamily: 'Arial, sans-serif' }}>
                       Field: <span style={{ color: c.orange }}>{FIELD_LABELS[req.field_name] || req.field_name}</span>
                       {' · '}{formatDate(req.created_at)}
-                      {' · '}by <span style={{ fontFamily: '"Courier New", monospace' }}>{shortId(req.submitted_by)}</span>
+                      {' · '}by{' '}
+                      {(() => { const who = editContributor(req); return (
+                        <span>
+                          <span style={{ fontFamily: '"Courier New", monospace', color: c.textDim }}>{who.primary}</span>
+                          {who.secondary && <span style={{ fontFamily: '"Courier New", monospace', color: c.gold, marginLeft: '5px' }}>{who.secondary}</span>}
+                        </span>
+                      )})()}
                     </p>
                   </div>
                   <span style={{
