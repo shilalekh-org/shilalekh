@@ -44,7 +44,6 @@ type EditRequest = {
   status: string; admin_note: string | null; reviewed_at: string | null
   created_at: string
   inscriptions: { id: number; shila_id: string; title: string } | null
-  profiles: { handle: string | null; is_anonymous: boolean } | null
 }
 
 type AdminUser = {
@@ -95,12 +94,13 @@ export default function Admin() {
     const [{ data: insData }, { data: editsData }, { data: usersData }] = await Promise.all([
       supabase.from('inscriptions').select('*').order('created_at', { ascending: false }),
       supabase.from('edit_requests')
-        .select('*, inscriptions(id, shila_id, title), profiles(handle, is_anonymous)')
+        .select('*, inscriptions(id, shila_id, title)')
         .order('created_at', { ascending: false }),
       supabase.rpc('get_admin_users'),
     ])
     if (insData)   setInscriptions(insData)
     if (editsData) setEditRequests(editsData as EditRequest[])
+    else console.error('edit_requests fetch returned null — check Supabase query/RLS')
     if (usersData) {
       const admUsers = usersData as AdminUser[]
       setUsers(admUsers)
@@ -305,7 +305,7 @@ export default function Admin() {
     }
     // Fallback if users haven't loaded yet
     return {
-      primary: req.profiles?.handle ? `@${req.profiles.handle}` : shortId(req.submitted_by),
+      primary: shortId(req.submitted_by),
       secondary: null,
     }
   }
