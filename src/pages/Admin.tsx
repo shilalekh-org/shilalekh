@@ -7,14 +7,24 @@ import { useTheme } from '../theme'
 const ADMIN_EMAIL = 'aditya.gokhale07@gmail.com'
 
 const ALLOWED_FIELDS = [
-  'title', 'script', 'language', 'year', 'dynasty', 'reign_ruler', 'condition',
+  'title', 'material_type', 'script', 'language', 'year', 'dynasty', 'reign_ruler',
+  'purpose_category', 'condition', 'country', 'state_province', 'current_location',
+  'in_situ', 'height_cm', 'width_cm', 'depth_cm', 'accession_number',
   'short_description', 'actual_text', 'transliteration', 'translation_english',
   'importance', 'detailed_information',
 ]
+// Fields stored as boolean — suggested value "Yes"/"No" must be converted
+const BOOLEAN_FIELDS = ['in_situ']
+// Fields stored as numeric — suggested value must be parsed to float
+const NUMERIC_FIELDS = ['height_cm', 'width_cm', 'depth_cm']
 
 const FIELD_LABELS: Record<string, string> = {
-  title: 'Title', script: 'Script', language: 'Language', year: 'Year / Date',
-  dynasty: 'Dynasty', reign_ruler: 'Ruler / Reign', condition: 'Condition',
+  title: 'Title', material_type: 'Type', script: 'Script', language: 'Language',
+  year: 'Year / Date', dynasty: 'Dynasty', reign_ruler: 'Ruler / Reign',
+  purpose_category: 'Purpose', condition: 'Condition',
+  country: 'Country', state_province: 'State / Province', current_location: 'Location',
+  in_situ: 'In Situ', height_cm: 'Height (cm)', width_cm: 'Width (cm)', depth_cm: 'Depth (cm)',
+  accession_number: 'Accession Number',
   short_description: 'Short Description', actual_text: 'Actual Text',
   transliteration: 'Transliteration', translation_english: 'English Translation',
   importance: 'Importance', detailed_information: 'Detailed Information',
@@ -184,10 +194,17 @@ export default function Admin() {
       setActionLoading(null); return
 
     } else {
-      // Standard text field — direct update
+      // Coerce value type for boolean / numeric fields before saving
+      let updateValue: any = req.suggested_value
+      if (BOOLEAN_FIELDS.includes(req.field_name)) {
+        updateValue = req.suggested_value.toLowerCase() === 'yes' ? true : false
+      } else if (NUMERIC_FIELDS.includes(req.field_name)) {
+        const parsed = parseFloat(req.suggested_value)
+        updateValue = isNaN(parsed) ? null : parsed
+      }
       const { error } = await supabase
         .from('inscriptions')
-        .update({ [req.field_name]: req.suggested_value })
+        .update({ [req.field_name]: updateValue })
         .eq('id', req.inscription_id)
       insUpdateError = error
     }

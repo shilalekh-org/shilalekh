@@ -7,12 +7,22 @@ import { useBookmarks } from '../lib/useBookmarks'
 
 const EDITABLE_FIELDS = [
   { key: 'title',                label: 'Title' },
+  { key: 'material_type',        label: 'Type' },
   { key: 'script',               label: 'Script' },
   { key: 'language',             label: 'Language' },
   { key: 'year',                 label: 'Year / Date' },
   { key: 'dynasty',              label: 'Dynasty' },
   { key: 'reign_ruler',          label: 'Ruler / Reign' },
+  { key: 'purpose_category',     label: 'Purpose' },
   { key: 'condition',            label: 'Condition' },
+  { key: 'country',              label: 'Country' },
+  { key: 'state_province',       label: 'State / Province' },
+  { key: 'current_location',     label: 'Location' },
+  { key: 'in_situ',              label: 'In Situ' },
+  { key: 'height_cm',            label: 'Height (cm)' },
+  { key: 'width_cm',             label: 'Width (cm)' },
+  { key: 'depth_cm',             label: 'Depth (cm)' },
+  { key: 'accession_number',     label: 'Accession Number' },
   { key: 'short_description',    label: 'Short Description' },
   { key: 'actual_text',          label: 'Actual Text (original script)' },
   { key: 'transliteration',      label: 'Transliteration' },
@@ -24,6 +34,10 @@ const FIELD_MAP = Object.fromEntries(EDITABLE_FIELDS.map(f => [f.key, f.label]))
 
 // Fields where content is multi-line / line-numbered
 const LINE_NUMBERED_FIELDS = ['actual_text', 'transliteration']
+// Fields that require a Yes/No dropdown
+const BOOLEAN_FIELDS = ['in_situ']
+// Fields that require a numeric input
+const NUMERIC_FIELDS = ['height_cm', 'width_cm', 'depth_cm']
 
 // ─── Pencil icon ──────────────────────────────────────────────────────────────
 function PencilBtn({ onClick, color }: { onClick: () => void; color: string }) {
@@ -255,22 +269,22 @@ export default function Inscription() {
   const inputStyle = { width: '100%', background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: '4px', padding: '10px 14px', color: c.text, fontSize: '13px', fontFamily: 'Georgia, serif', outline: 'none', boxSizing: 'border-box' as const }
 
   const metaFields = [
-    { label: 'Type',          value: displayType },
-    { label: 'Script',        value: inscription.script,      key: 'script' },
-    { label: 'Language',      value: inscription.language,    key: 'language' },
-    { label: 'Year',          value: inscription.year,        key: 'year' },
-    { label: 'Dynasty',       value: inscription.dynasty,     key: 'dynasty' },
-    { label: 'Ruler',         value: inscription.reign_ruler, key: 'reign_ruler' },
-    { label: 'Purpose',       value: displayPurpose },
-    { label: 'Condition',     value: inscription.condition,   key: 'condition' },
-    { label: 'Country',       value: inscription.country || inscription.current_country },
-    { label: 'State',         value: inscription.state_province },
-    { label: 'Location',      value: inscription.current_location },
-    { label: 'In Situ',       value: inscription.in_situ === true ? 'Yes' : inscription.in_situ === false ? 'No' : null },
-    { label: 'Height',        value: inscription.height_cm ? `${inscription.height_cm} cm` : null },
-    { label: 'Width',         value: inscription.width_cm  ? `${inscription.width_cm} cm`  : null },
-    { label: 'Depth',         value: inscription.depth_cm  ? `${inscription.depth_cm} cm`  : null },
-    { label: 'Accession No.', value: inscription.accession_number },
+    { label: 'Type',          value: displayType,                                                             key: 'material_type' },
+    { label: 'Script',        value: inscription.script,                                                     key: 'script' },
+    { label: 'Language',      value: inscription.language,                                                   key: 'language' },
+    { label: 'Year',          value: inscription.year,                                                       key: 'year' },
+    { label: 'Dynasty',       value: inscription.dynasty,                                                    key: 'dynasty' },
+    { label: 'Ruler',         value: inscription.reign_ruler,                                                key: 'reign_ruler' },
+    { label: 'Purpose',       value: displayPurpose,                                                         key: 'purpose_category' },
+    { label: 'Condition',     value: inscription.condition,                                                  key: 'condition' },
+    { label: 'Country',       value: inscription.country || inscription.current_country,                     key: 'country' },
+    { label: 'State',         value: inscription.state_province,                                             key: 'state_province' },
+    { label: 'Location',      value: inscription.current_location,                                           key: 'current_location' },
+    { label: 'In Situ',       value: inscription.in_situ === true ? 'Yes' : inscription.in_situ === false ? 'No' : null, key: 'in_situ' },
+    { label: 'Height',        value: inscription.height_cm ? `${inscription.height_cm} cm` : null,          key: 'height_cm' },
+    { label: 'Width',         value: inscription.width_cm  ? `${inscription.width_cm} cm`  : null,          key: 'width_cm' },
+    { label: 'Depth',         value: inscription.depth_cm  ? `${inscription.depth_cm} cm`  : null,          key: 'depth_cm' },
+    { label: 'Accession No.', value: inscription.accession_number,                                          key: 'accession_number' },
   ].filter(f => f.value)
 
   const BtnStyle = (active: boolean, activeColor: string) => ({
@@ -282,8 +296,10 @@ export default function Inscription() {
     letterSpacing: '.1em', cursor: 'pointer', fontFamily: 'Arial, sans-serif', transition: 'all 0.2s',
   })
 
-  // Whether the current edit field uses line-numbered textarea
+  // Input type detection for edit modal
   const isLineNumberedField = LINE_NUMBERED_FIELDS.includes(editField)
+  const isBooleanField      = BOOLEAN_FIELDS.includes(editField)
+  const isNumericField      = NUMERIC_FIELDS.includes(editField)
 
   return (
     <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Georgia, serif' }}>
@@ -379,7 +395,24 @@ export default function Inscription() {
                 ) : (
                   <div style={{ marginBottom: '14px' }}>
                     <p style={{ fontSize: '10px', letterSpacing: '.12em', color: c.textDim, marginBottom: '6px', fontFamily: 'Arial, sans-serif' }}>SUGGESTED VALUE *</p>
-                    {isLineNumberedField ? (
+                    {isBooleanField ? (
+                      // Yes / No dropdown for boolean fields like in_situ
+                      <select value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
+                        style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px' }}>
+                        <option value="">Select…</option>
+                        <option value="Yes">Yes — inscription is at its original location</option>
+                        <option value="No">No — inscription has been moved</option>
+                      </select>
+                    ) : isNumericField ? (
+                      // Number input for dimension fields
+                      <>
+                        <input type="number" min="0" step="0.1"
+                          value={editSuggested} onChange={e => setEditSuggested(e.target.value)}
+                          placeholder="Enter value in centimetres…"
+                          style={{ ...inputStyle, appearance: 'none' as const }} />
+                        <p style={{ fontSize: '10px', color: c.textFaint, marginTop: '4px', fontFamily: 'Arial, sans-serif' }}>Enter the measurement in centimetres (e.g. 45 or 45.5)</p>
+                      </>
+                    ) : isLineNumberedField ? (
                       // Line-numbered textarea for actual_text and transliteration
                       <>
                         <LineNumberedTextarea
